@@ -88,16 +88,15 @@ public class ThaumicAttempts {
         // GUI-handler — нужен один раз и один класс (твой общий GuiHandler)
         NetworkRegistry.INSTANCE.registerGuiHandler(ThaumicAttempts.INSTANCE, new GuiHandler());
 
+        //Addenda
+        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/arcane_ear_add"));
+        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/eldritch_add"));
+
         //Research
         ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemcraft"));
         ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemcraft_advanced"));
         ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemintegration"));
         ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemmirrors"));
-
-        //Addenda
-        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/arcane_ear_add"));
-        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/eldrtich_add"));
-
 
         proxy.init(e);
     }
@@ -108,8 +107,6 @@ public class ThaumicAttempts {
         TAAlchemyRecipes.register();
 
         proxy.postInit(e);
-
-
     }
 
     /** Регистрация всех S2C/C2S сообщений с уникальными ID */
