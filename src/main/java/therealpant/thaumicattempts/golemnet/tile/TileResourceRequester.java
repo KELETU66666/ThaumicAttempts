@@ -15,12 +15,12 @@ import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.items.ItemStackHandler;
+import thaumcraft.api.golems.GolemHelper;
 import therealpant.thaumicattempts.golemcraft.item.ItemResourceList;
 import therealpant.thaumicattempts.util.ItemKey;
 import thaumcraft.api.ThaumcraftApiHelper;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
-import therealpant.thaumicattempts.util.GolemProvisioningHelper;
 import thaumcraft.api.items.ItemsTC;
 import thaumcraft.common.items.ItemTCEssentiaContainer;
 
@@ -41,7 +41,7 @@ public class TileResourceRequester extends TileEntity implements ITickable {
     private static final int REQUEST_STALE_TICKS = 100;
     private static final int REQUEST_RETRY_TICKS = 200;
     private static final int PROVISION_MIN_INTERVAL = 5;
-    private static final int PROVISION_RETRY_INTERVAL = 20;
+
 
     private static final String ORDER_TAG_ROOT = "thaumicattempts_rr";
     private static final String ORDER_TAG_POS = "Pos";
@@ -626,17 +626,11 @@ public class TileResourceRequester extends TileEntity implements ITickable {
             }
 
             ItemStack request = head.copy();
-            boolean accepted = GolemProvisioningHelper.requestProvisioning(world, pos, EnumFacing.UP, request, 0);
-            if (accepted) {
-                provisionQueue.pollFirst();
-                lastRequestTick = tickCounter;
-                nextProvisionTick = tickCounter + PROVISION_MIN_INTERVAL;
-                markDirty();
-            } else {
-                nextProvisionTick = tickCounter + PROVISION_RETRY_INTERVAL;
-                markDirty();
-            }
-            break;
+            GolemHelper.requestProvisioning(world, pos, EnumFacing.UP, request, 0);
+            provisionQueue.pollFirst();
+            lastRequestTick = tickCounter;
+            nextProvisionTick = tickCounter + PROVISION_MIN_INTERVAL;
+            markDirty();
         }
     }
 

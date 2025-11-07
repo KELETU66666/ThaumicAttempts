@@ -18,13 +18,13 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.items.ItemStackHandler;
 import thaumcraft.api.ThaumcraftInvHelper;
+import thaumcraft.api.golems.GolemHelper;
 import thaumcraft.common.golems.seals.SealEntity;
 import thaumcraft.common.golems.seals.SealHandler;
 import thaumcraft.common.golems.seals.SealProvide;
 import therealpant.thaumicattempts.golemcraft.item.ItemResourceList;
 import therealpant.thaumicattempts.golemcraft.tile.TileEntityGolemCrafter;
 import therealpant.thaumicattempts.integration.TcLogisticsCompat;
-import therealpant.thaumicattempts.util.GolemProvisioningHelper;
 import therealpant.thaumicattempts.util.ItemKey;
 
 import javax.annotation.Nullable;
@@ -266,38 +266,6 @@ public class TileMirrorManager extends TileEntity implements ITickable {
             markDirtyAndSync();
         }
 
-        // если активных больше нового лимита — перевести «лишние» в подвешенные
-        while (activeMirrors.size() > calcMirrorCap) {
-            MirrorSlot m = activeMirrors.remove(activeMirrors.size() - 1);
-            // слот занят подвешенным
-            pendingEjects.add(new PendingEject(m.ring, m.slot, world.getTotalWorldTime()));
-        }
-
-        // дозаполнить активные из буфера, если есть лимит
-        int wantActive = Math.max(0, calcMirrorCap - activeMirrors.size());
-        if (wantActive > 0) {
-            for (int i = 0; i < buffer.getSlots() && wantActive > 0; i++) {
-                ItemStack peek = buffer.extractItem(i, 1, true);
-                if (peek.isEmpty() || !isMirrorItem(peek)) continue;
-                if (addMirror()) { // consume 1
-                    buffer.extractItem(i, 1, false);
-                    wantActive--;
-                }
-            }
-        }
-
-        // всё, что осталось зеркал в буфере — подвесить и потом выбросить
-        for (int i = 0; i < buffer.getSlots(); i++) {
-            ItemStack peek = buffer.extractItem(i, 1, true);
-            if (peek.isEmpty() || !isMirrorItem(peek)) continue;
-
-            int[] fs = pickFreeSlot();
-            if (fs == null) break; // визуальных позиций не осталось
-            occupySlot(fs[0], fs[1]);
-            pendingEjects.add(new PendingEject(fs[0], fs[1], world.getTotalWorldTime()));
-            buffer.extractItem(i, 1, false); // изъяли — выбросим сами
-        }
-
         if (!pendingEjects.isEmpty()) markDirtyAndSync();
     }
 
@@ -371,23 +339,6 @@ public class TileMirrorManager extends TileEntity implements ITickable {
     private final ItemStackHandler buffer = new ItemStackHandler(18) {
         @Override
         public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            // если это зеркало и активных уже по лимиту — не кладём в буфер пачку,
-            // а забираем РОВНО 1 шт. и подвешиваем к выбросу
-            if (!simulate && isMirrorItem(stack) && activeMirrors.size() >= calcMirrorCap) {
-                // занять свободный слот для визуала подвешенного
-                int[] fs = pickFreeSlot();
-                if (fs != null) {
-                    occupySlot(fs[0], fs[1]);
-                    pendingEjects.add(new PendingEject(fs[0], fs[1], world.getTotalWorldTime()));
-                    stack.shrink(1); // забрали 1
-                    markDirtyAndSync();
-                    return stack; // остаток возвращаем источнику
-                }
-                // если свободных визуальных слотов нет — просто не принимаем (возврат stack без изменений)
-                return stack;
-            }
-
-            // обычная логика
             ItemStack before = stack.copy();
             ItemStack res = super.insertItem(slot, stack, simulate);
             if (!simulate) {
@@ -1035,7 +986,7 @@ public class TileMirrorManager extends TileEntity implements ITickable {
                 while (budget > 0) {
                     int chunk = Math.min(ln.wanted1.getMaxStackSize(), budget);
                     ItemStack req = normalizeForProvision(ln.wanted1, chunk);
-                    GolemProvisioningHelper.requestProvisioning(world, this.pos, EnumFacing.UP, req, 0);
+                    GolemHelper.requestProvisioning(world, this.pos, EnumFacing.UP, req, 0);
                     requested += chunk;
                     budget    -= chunk;
                 }
@@ -1149,7 +1100,7 @@ public class TileMirrorManager extends TileEntity implements ITickable {
             ItemStack like1 = firstMiss.getKey().toStack(1);
             int chunk = Math.min(like1.getMaxStackSize(), firstMiss.getValue());
             ItemStack req = normalizeForProvision(like1, chunk); // <— ключевое
-            GolemProvisioningHelper.requestProvisioning(world, this.pos, EnumFacing.UP, req, 0);
+            GolemHelper.requestProvisioning(world, this.pos, EnumFacing.UP, req, 0);
         }
 
 

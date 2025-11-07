@@ -53,7 +53,7 @@ public final class TAArcaneRecipes {
             ShapedArcaneRecipe pat1 = new ShapedArcaneRecipe(
                     new ResourceLocation(ThaumicAttempts.MODID, "patterns"),
                     "TA_GOLEMCRAFT",
-                    1500,
+                    150,
                     new AspectList().add(Aspect.ORDER, 2).add(Aspect.EARTH, 2).add(Aspect.ENTROPY, 2),
                     new ItemStack(Item.getByNameOrId(ThaumicAttempts.MODID + ":craft_pattern")),
                     "PAP",
