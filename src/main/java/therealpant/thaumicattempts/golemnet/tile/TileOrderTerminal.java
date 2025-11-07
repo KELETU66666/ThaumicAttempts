@@ -51,6 +51,17 @@ public class TileOrderTerminal extends TileEntity implements ITickable {
     private final LinkedHashMap<ItemKey, Integer> pendingDelivery = new LinkedHashMap<>();
     private final LinkedHashMap<ItemKey, Integer> pendingCraft    = new LinkedHashMap<>();
 
+    private static final class ResourceOrderRequest {
+        final BlockPos pos;
+        final int slot;
+        final int count;
+        ResourceOrderRequest(BlockPos pos, int slot, int count) {
+            this.pos = pos;
+            this.slot = slot;
+            this.count = count;
+        }
+    }
+
     /* ===== Буфер 3×3 ===== */
     private final ItemStackHandler buffer = new ItemStackHandler(9) {
         @Override protected void onContentsChanged(int slot) {
@@ -196,10 +207,22 @@ public class TileOrderTerminal extends TileEntity implements ITickable {
 
         int freeDistinct = Math.max(0, 9 - pend.size());
         List<Map.Entry<ItemKey, Integer>> movedRaw = new ArrayList<>();
+        List<ResourceOrderRequest> resourceOrders = new ArrayList<>();
 
         for (Map.Entry<ItemKey, Integer> e : new ArrayList<>(draft.entrySet())) {
             ItemKey key = e.getKey();
             int amt = Math.max(1, e.getValue());
+
+            ItemStack keyStack = key.toStack(1);
+            if (TileResourceRequester.isOrderIcon(keyStack)) {
+                BlockPos target = TileResourceRequester.getOrderIconPos(keyStack);
+                int slot = TileResourceRequester.getOrderIconSlot(keyStack);
+                if (target != null && slot >= 0) {
+                    resourceOrders.add(new ResourceOrderRequest(target, slot, amt));
+                }
+                draft.remove(key);
+                continue;
+            }
 
             int toMove = amt;
             if (!craftTab) {
@@ -227,7 +250,23 @@ public class TileOrderTerminal extends TileEntity implements ITickable {
             if (!alreadyInPend) freeDistinct--;
         }
 
-        if (movedRaw.isEmpty()) { markDirty(); sendSnapshotToViewers(craftTab); return; }
+        if (!resourceOrders.isEmpty()) {
+            markDirty();
+            for (ResourceOrderRequest order : resourceOrders) {
+                TileEntity te = world.getTileEntity(order.pos);
+                if (te instanceof TileResourceRequester) {
+                    ((TileResourceRequester) te).triggerExternalRequest(order.slot, order.count);
+                }
+            }
+        }
+
+        if (movedRaw.isEmpty()) {
+            if (resourceOrders.isEmpty()) {
+                markDirty();
+            }
+            sendSnapshotToViewers(craftTab);
+            return;
+        }
 
         LinkedHashMap<ItemKey, Integer> merged = new LinkedHashMap<>();
         for (Map.Entry<ItemKey, Integer> e : movedRaw) merged.merge(e.getKey(), e.getValue(), Integer::sum);

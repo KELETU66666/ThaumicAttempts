@@ -25,6 +25,8 @@ import thaumcraft.api.aspects.IEssentiaTransport;
 import thaumcraft.api.items.ItemsTC;
 import thaumcraft.common.items.ItemTCEssentiaContainer;
 import therealpant.thaumicattempts.golemnet.tile.TilePatternRequester;
+import therealpant.thaumicattempts.util.GolemProvisioningHelper;
+
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -587,7 +589,7 @@ public class TileEntityGolemCrafter extends TileEntity implements ITickable, IEs
                 long now = world.getTotalWorldTime();
                 if (!suppressSelfProvision && (lastOrderWorldTime == 0L || now - lastOrderWorldTime >= REORDER_TICKS)) {
                     ItemStack req = normalizeForProvision(r.key1, Math.min(r.count - have, r.key1.getMaxStackSize()));
-                    thaumcraft.api.golems.GolemHelper.requestProvisioning(world, pos, EnumFacing.UP, req, 0);
+                    GolemProvisioningHelper.requestProvisioning(world, pos, EnumFacing.UP, req, 0);
                     lastOrderWorldTime = now;
                     supplyCooldown = SUPPLY_COOLDOWN;
                 }

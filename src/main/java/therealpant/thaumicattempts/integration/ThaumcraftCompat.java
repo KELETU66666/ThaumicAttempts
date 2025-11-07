@@ -8,7 +8,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import thaumcraft.api.golems.GolemHelper;
+import therealpant.thaumicattempts.util.GolemProvisioningHelper;
 
 import java.util.*;
 
@@ -162,7 +162,7 @@ public final class ThaumcraftCompat {
 
                 // сторона — любая валидная; бери ту, с которой «принимает» твой блок.
                 // Если у блока есть собственный facing — подставь его вместо SOUTH.
-                GolemHelper.requestProvisioning(world, dropPos, EnumFacing.SOUTH, req);
+                GolemProvisioningHelper.requestProvisioning(world, dropPos, EnumFacing.SOUTH, req);
 
                 left -= n;
             }

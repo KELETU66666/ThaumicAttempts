@@ -21,8 +21,10 @@ import thaumcraft.api.ThaumcraftInvHelper;
 import thaumcraft.common.golems.seals.SealEntity;
 import thaumcraft.common.golems.seals.SealHandler;
 import thaumcraft.common.golems.seals.SealProvide;
+import therealpant.thaumicattempts.golemcraft.item.ItemResourceList;
 import therealpant.thaumicattempts.golemcraft.tile.TileEntityGolemCrafter;
 import therealpant.thaumicattempts.integration.TcLogisticsCompat;
+import therealpant.thaumicattempts.util.GolemProvisioningHelper;
 import therealpant.thaumicattempts.util.ItemKey;
 
 import javax.annotation.Nullable;
@@ -1033,7 +1035,7 @@ public class TileMirrorManager extends TileEntity implements ITickable {
                 while (budget > 0) {
                     int chunk = Math.min(ln.wanted1.getMaxStackSize(), budget);
                     ItemStack req = normalizeForProvision(ln.wanted1, chunk);
-                    thaumcraft.api.golems.GolemHelper.requestProvisioning(world, this.pos, EnumFacing.UP, req, 0);
+                    GolemProvisioningHelper.requestProvisioning(world, this.pos, EnumFacing.UP, req, 0);
                     requested += chunk;
                     budget    -= chunk;
                 }
@@ -1147,7 +1149,7 @@ public class TileMirrorManager extends TileEntity implements ITickable {
             ItemStack like1 = firstMiss.getKey().toStack(1);
             int chunk = Math.min(like1.getMaxStackSize(), firstMiss.getValue());
             ItemStack req = normalizeForProvision(like1, chunk); // <— ключевое
-            thaumcraft.api.golems.GolemHelper.requestProvisioning(world, this.pos, EnumFacing.UP, req, 0);
+            GolemProvisioningHelper.requestProvisioning(world, this.pos, EnumFacing.UP, req, 0);
         }
 
 
@@ -1986,6 +1988,34 @@ public class TileMirrorManager extends TileEntity implements ITickable {
         return out;
     }
 
+    private void appendResourcePreviews(BlockPos resourcePos, Set<BlockPos> seen, List<ItemStack> into) {
+        if (world == null || world.isRemote) return;
+        if (resourcePos == null) return;
+
+        BlockPos key = resourcePos.toImmutable();
+        if (seen != null && seen.contains(key)) return;
+
+        TileEntity te = world.getTileEntity(resourcePos);
+        if (!(te instanceof TileResourceRequester)) return;
+
+        if (seen != null) seen.add(key);
+
+        TileEntity above = world.getTileEntity(resourcePos.up());
+        if (!(above instanceof TilePatternRequester)) return;
+
+        IItemHandler patt = ((TileResourceRequester) te).getPatternHandler();
+        if (patt == null) return;
+
+        for (int i = 0; i < patt.getSlots(); i++) {
+            ItemStack pattern = patt.getStackInSlot(i);
+            if (pattern.isEmpty() || !(pattern.getItem() instanceof ItemResourceList)) continue;
+            ItemStack icon = ItemResourceList.getPreviewOrFirstEntry(pattern);
+            if (icon.isEmpty()) continue;
+            ItemStack display = TileResourceRequester.makeOrderIcon(icon, resourcePos, i);
+            if (!display.isEmpty()) into.add(display);
+        }
+    }
+
     /** Сводный список крафтабельных результатов. */
     public List<ItemStack> getCraftablesCatalog() {
         LinkedHashMap<ItemKey, Integer> map = new LinkedHashMap<>();
@@ -2012,6 +2042,23 @@ public class TileMirrorManager extends TileEntity implements ITickable {
             one.setCount(e.getValue());
             result.add(one);
         }
+
+        java.util.Set<BlockPos> seenResources = new java.util.HashSet<>();
+
+        for (BlockPos rp : requesters) {
+            TileEntity te = world.getTileEntity(rp);
+            if (!(te instanceof TilePatternRequester)) continue;
+            appendResourcePreviews(rp.down(), seenResources, result);
+        }
+
+        for (BlockPos rp : boundRequesters) {
+            appendResourcePreviews(rp.down(), seenResources, result);
+        }
+
+        for (BlockPos tp : boundTerminals) {
+            appendResourcePreviews(tp, seenResources, result);
+        }
+
         return result;
     }
 

@@ -1,6 +1,5 @@
 package therealpant.thaumicattempts.golemnet.tile;
 
-import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -18,13 +17,37 @@ import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.items.ItemStackHandler;
 import therealpant.thaumicattempts.golemcraft.item.ItemResourceList;
 import therealpant.thaumicattempts.util.ItemKey;
+import thaumcraft.api.ThaumcraftApiHelper;
+import thaumcraft.api.aspects.Aspect;
+import thaumcraft.api.aspects.AspectList;
+import therealpant.thaumicattempts.util.GolemProvisioningHelper;
+import thaumcraft.api.items.ItemsTC;
+import thaumcraft.common.items.ItemTCEssentiaContainer;
 
 import javax.annotation.Nullable;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.EnumMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class TileResourceRequester extends TileEntity implements ITickable {
 
-    private final ItemStackHandler patterns = new ItemStackHandler(9) {
+    private static final int PATTERN_SLOT_COUNT = 15;
+    private static final int REQUEST_STALE_TICKS = 100;
+    private static final int REQUEST_RETRY_TICKS = 200;
+    private static final int PROVISION_MIN_INTERVAL = 5;
+    private static final int PROVISION_RETRY_INTERVAL = 20;
+
+    private static final String ORDER_TAG_ROOT = "thaumicattempts_rr";
+    private static final String ORDER_TAG_POS = "Pos";
+    private static final String ORDER_TAG_SLOT = "Slot";
+
+    private final ItemStackHandler patterns = new ItemStackHandler(PATTERN_SLOT_COUNT) {
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             return stack != null && !stack.isEmpty() && stack.getItem() instanceof ItemResourceList;
@@ -46,6 +69,17 @@ public class TileResourceRequester extends TileEntity implements ITickable {
     private final LinkedHashMap<ItemKey, Integer> pending = new LinkedHashMap<>();
     private final LinkedHashMap<ItemKey, Integer> baselines = new LinkedHashMap<>();
     private final List<ItemStack> sequence = new ArrayList<>();
+    private final Deque<ItemStack> provisionQueue = new ArrayDeque<>();
+    private static final class QueuedTrigger {
+        int slot;
+        int count;
+        QueuedTrigger(int slot, int count) {
+            this.slot = slot;
+            this.count = count;
+        }
+    }
+
+    private final Deque<QueuedTrigger> queuedSignals = new ArrayDeque<>();
 
     private boolean jobActive = false;
     private int activeSlot = -1;
@@ -54,8 +88,12 @@ public class TileResourceRequester extends TileEntity implements ITickable {
     private int tickCounter = 0;
     private int lastEnsureTick = -9999;
     private boolean needEnsure = false;
+    private int lastProgressTick = 0;
+    private int lastRequestTick = 0;
+    private int nextProvisionTick = 0;
 
     private @Nullable BlockPos managerPos = null;
+    private boolean managerFromPattern = false;
 
     public ItemStackHandler getPatternHandler() { return patterns; }
     public ItemStackHandler getBufferHandler() { return buffer; }
@@ -86,35 +124,61 @@ public class TileResourceRequester extends TileEntity implements ITickable {
 
     @Override
     public void update() {
-        if (world == null || world.isRemote) return;
+        if (world == null) return;
+
+        if (!world.isRemote) {
+            syncManagerFromPattern();
+        }
+
+        if (world.isRemote) return;
 
         tickCounter++;
 
         int signal = readSignal();
-        if (!jobActive && lastSignal == 0 && signal > 0) {
+        if (signal > 0 && signal != lastSignal) {
             int idx = patternIndexFromSignal(signal);
-            if (idx >= 0) startJob(idx);
+            if (idx >= 0) {
+                enqueueTrigger(idx, 1);
+                tryStartQueuedJob();
+            }
         }
         lastSignal = signal;
+
+        if (!jobActive) {
+            tryStartQueuedJob();
+        }
 
         if (jobActive) {
             reconcilePending();
             ensurePendingWithManager(20);
 
-            if (pending.isEmpty()) {
+            if (!useManagerForProvision()) {
+                drainProvisionQueue();
+            } else if (!provisionQueue.isEmpty()) {
+                provisionQueue.clear();
+                markDirty();
+            }
+
+            if (!pending.isEmpty()) {
+                if ((tickCounter - lastProgressTick) > REQUEST_STALE_TICKS
+                        && (tickCounter - lastRequestTick) >= REQUEST_RETRY_TICKS) {
+                    requestProvisionForPending();
+                }
+            } else {
                 deliverSequence();
                 clearJob();
             }
         }
     }
 
-    private void startJob(int slot) {
+    private boolean tryStartJob(int slot) {
         ItemStack pattern = patterns.getStackInSlot(slot);
-        if (pattern.isEmpty() || !(pattern.getItem() instanceof ItemResourceList)) return;
+        if (pattern.isEmpty() || !(pattern.getItem() instanceof ItemResourceList)) return false;
 
         pending.clear();
         baselines.clear();
         sequence.clear();
+        lastProgressTick = tickCounter;
 
         NonNullList<ItemStack> grid = ItemResourceList.readGrid(pattern);
         for (ItemStack s : grid) {
@@ -129,7 +193,7 @@ public class TileResourceRequester extends TileEntity implements ITickable {
 
         if (pending.isEmpty()) {
             sequence.clear();
-            return;
+            return false;
         }
 
         // учтём содержимое буфера
@@ -151,23 +215,37 @@ public class TileResourceRequester extends TileEntity implements ITickable {
         activeSlot = slot;
         needEnsure = true;
         ensurePendingWithManager(0);
+        if (!useManagerForProvision()) {
+            resetProvisionQueueFromPending();
+        }
         markDirty();
 
         if (pending.isEmpty()) {
             deliverSequence();
             clearJob();
+            return true;
         }
+
+        requestProvisionForSlot(slot);
+
+        return true;
     }
 
     private void clearJob() {
         pending.clear();
         baselines.clear();
         sequence.clear();
+        provisionQueue.clear();
         jobActive = false;
         activeSlot = -1;
         needEnsure = false;
         lastEnsureTick = -9999;
+        lastProgressTick = tickCounter;
+        lastRequestTick = tickCounter;
+        nextProvisionTick = tickCounter;
         markDirty();
+
+        tryStartQueuedJob();
     }
 
     public void cancelActiveJob() {
@@ -178,22 +256,29 @@ public class TileResourceRequester extends TileEntity implements ITickable {
         if (pending.isEmpty()) return;
 
         boolean changed = false;
+        boolean progressed = false;
         for (Iterator<Map.Entry<ItemKey, Integer>> it = pending.entrySet().iterator(); it.hasNext();) {
             Map.Entry<ItemKey, Integer> e = it.next();
             ItemStack like = e.getKey().toStack(1);
             int baseline = Math.max(0, baselines.getOrDefault(e.getKey(), 0));
             int have = countInBufferLike(like);
             int delta = Math.max(0, have - baseline);
+            int prev = e.getValue();
             int left = Math.max(0, e.getValue() - delta);
             if (left <= 0) {
                 it.remove();
                 changed = true;
+                if (prev > 0 && delta > 0) progressed = true;
             } else if (left != e.getValue()) {
                 e.setValue(left);
                 changed = true;
+                if (left < prev) progressed = true;
             }
         }
 
+        if (progressed) {
+            lastProgressTick = tickCounter;
+        }
         if (changed) {
             needEnsure = true;
             markDirty();
@@ -219,14 +304,13 @@ public class TileResourceRequester extends TileEntity implements ITickable {
     private void deliverSequence() {
         if (world == null || sequence.isEmpty()) return;
 
-        EnumFacing facing = EnumFacing.NORTH;
-        IBlockState state = world.getBlockState(pos);
-        if (state.getPropertyKeys().contains(net.minecraft.block.BlockHorizontal.FACING)) {
-            facing = state.getValue(net.minecraft.block.BlockHorizontal.FACING);
+        Map<EnumFacing, IItemHandler> neighbors = new EnumMap<>(EnumFacing.class);
+        for (EnumFacing dir : EnumFacing.values()) {
+            IItemHandler handler = getNeighborHandler(pos.offset(dir), dir.getOpposite());
+            if (handler != null) {
+                neighbors.put(dir, handler);
+            }
         }
-
-        BlockPos targetPos = pos.offset(facing);
-        IItemHandler dest = getNeighborHandler(targetPos, facing.getOpposite());
 
         for (ItemStack order : sequence) {
             if (order == null || order.isEmpty()) continue;
@@ -235,16 +319,43 @@ public class TileResourceRequester extends TileEntity implements ITickable {
                 ItemStack chunk = extractFromBuffer(order, remaining);
                 if (chunk.isEmpty()) break;
                 remaining -= chunk.getCount();
-                if (dest != null) {
-                    ItemStack leftover = ItemHandlerHelper.insertItem(dest, chunk, false);
-                    if (!leftover.isEmpty()) {
-                        dropStack(leftover);
-                    }
-                } else {
-                    dropStack(chunk);
+                ItemStack leftover = distributeToNeighbors(chunk, neighbors);
+                if (!leftover.isEmpty()) {
+                    dropStackDown(leftover);
                 }
             }
         }
+    }
+
+    private ItemStack distributeToNeighbors(ItemStack stack, Map<EnumFacing, IItemHandler> neighbors) {
+        if (world == null || stack == null || stack.isEmpty()) return stack;
+
+        if (neighbors == null || neighbors.isEmpty()) {
+            return stack;
+        }
+
+        ItemStack remaining = stack;
+        for (EnumFacing dir : EnumFacing.values()) {
+            IItemHandler handler = neighbors.get(dir);
+            if (handler == null) continue;
+            remaining = ItemHandlerHelper.insertItem(handler, remaining, false);
+            if (remaining.isEmpty()) break;
+        }
+        return remaining;
+    }
+
+    private void dropStackDown(ItemStack stack) {
+        if (world == null || stack == null || stack.isEmpty()) return;
+        BlockPos dropPos = pos.down();
+        double x = dropPos.getX() + 0.5;
+        double y = dropPos.getY() + 0.2;
+        double z = dropPos.getZ() + 0.5;
+        EntityItem entity = new EntityItem(world, x, y, z, stack);
+        entity.motionX = 0;
+        entity.motionY = -0.1;
+        entity.motionZ = 0;
+        entity.setDefaultPickupDelay();
+        world.spawnEntity(entity);
     }
 
     private void dropStack(ItemStack stack) {
@@ -330,6 +441,216 @@ public class TileResourceRequester extends TileEntity implements ITickable {
         return Math.min(signal - 1, patterns.getSlots() - 1);
     }
 
+    private boolean hasPatternRequesterAbove() {
+        if (world == null) return false;
+        TileEntity te = world.getTileEntity(pos.up());
+        return te instanceof TilePatternRequester;
+    }
+
+    private boolean useManagerForProvision() {
+        return hasPatternRequesterAbove() && managerPos != null;
+    }
+
+    private void syncManagerFromPattern() {
+        if (world == null || world.isRemote) return;
+
+        TileEntity above = world.getTileEntity(pos.up());
+        if (above instanceof TilePatternRequester) {
+            TilePatternRequester requester = (TilePatternRequester) above;
+            BlockPos patternManager = requester.getManagerPos();
+            if (patternManager != null) {
+                setManagerPos(patternManager, true);
+            } else if (managerFromPattern) {
+                setManagerPos(null, false);
+            }
+        } else if (managerFromPattern) {
+            setManagerPos(null, false);
+        }
+    }
+
+    private void enqueueTrigger(int slot, int count) {
+        if (slot < 0 || slot >= patterns.getSlots()) return;
+        if (count <= 0) return;
+
+        boolean changed = false;
+        QueuedTrigger tail = queuedSignals.peekLast();
+        if (tail != null && tail.slot == slot) {
+            long merged = (long) tail.count + (long) count;
+            int newCount = (int) Math.min(Integer.MAX_VALUE, Math.max(1L, merged));
+            if (tail.count != newCount) {
+                tail.count = newCount;
+                changed = true;
+            }
+        } else {
+            queuedSignals.addLast(new QueuedTrigger(slot, Math.min(Integer.MAX_VALUE, count)));
+            changed = true;
+        }
+
+        if (changed) {
+            markDirty();
+        }
+    }
+
+    private void tryStartQueuedJob() {
+        while (!queuedSignals.isEmpty() && !jobActive) {
+            QueuedTrigger head = queuedSignals.peekFirst();
+            if (head == null) {
+                queuedSignals.pollFirst();
+                markDirty();
+                continue;
+            }
+            if (head.slot < 0 || head.slot >= patterns.getSlots()) {
+                queuedSignals.pollFirst();
+                markDirty();
+                continue;
+            }
+            if (tryStartJob(head.slot)) {
+                head.count--;
+                if (head.count <= 0) {
+                    queuedSignals.pollFirst();
+                    markDirty();
+                }
+                break;
+            }
+            queuedSignals.pollFirst();
+            markDirty();
+        }
+    }
+
+    private void requestProvisionForSlot(int slot) {
+        if (world == null || world.isRemote) return;
+        if (slot < 0 || slot >= patterns.getSlots()) return;
+
+        ItemStack pattern = patterns.getStackInSlot(slot);
+        if (pattern.isEmpty() || !(pattern.getItem() instanceof ItemResourceList)) return;
+
+        if (useManagerForProvision()) {
+            lastRequestTick = tickCounter;
+            needEnsure = true;
+            return;
+        }
+
+        if (provisionQueue.isEmpty()) {
+            resetProvisionQueueFromPending();
+        }
+        drainProvisionQueue();
+    }
+
+    private void requestProvisionForPending() {
+        if (world == null || world.isRemote || pending.isEmpty()) return;
+
+        if (useManagerForProvision()) {
+            lastRequestTick = tickCounter;
+            needEnsure = true;
+            return;
+        }
+
+        if (provisionQueue.isEmpty()) {
+            resetProvisionQueueFromPending();
+        }
+        drainProvisionQueue();
+    }
+
+    private static ItemStack normalizeForProvision(ItemStack like, int amount) {
+        if (like == null || like.isEmpty()) return ItemStack.EMPTY;
+
+        if (isCrystal(like)) {
+            Aspect aspect = aspectOf(like);
+            if (aspect != null) {
+                return ThaumcraftApiHelper.makeCrystal(aspect, Math.max(1, amount));
+            }
+        }
+
+        if (like.getMaxStackSize() == 1) {
+            return new ItemStack(like.getItem(), Math.max(1, amount), like.getMetadata());
+        }
+
+        ItemStack copy = like.copy();
+        copy.setCount(Math.max(1, amount));
+        return copy;
+    }
+
+    private void resetProvisionQueueFromPending() {
+        provisionQueue.clear();
+        if (pending.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<ItemKey, Integer> entry : pending.entrySet()) {
+            ItemStack like = entry.getKey().toStack(1);
+            if (like == null || like.isEmpty()) continue;
+            int amount = Math.max(1, entry.getValue());
+            enqueueProvisionChunks(like, amount);
+        }
+        if (!provisionQueue.isEmpty()) {
+            nextProvisionTick = tickCounter;
+            markDirty();
+        }
+    }
+
+    private void enqueueProvisionChunks(ItemStack like, int amount) {
+        if (like == null || like.isEmpty() || amount <= 0) return;
+
+        if (like.getMaxStackSize() == 1) {
+            for (int i = 0; i < amount; i++) {
+                ItemStack request = normalizeForProvision(like, 1);
+                if (!request.isEmpty()) {
+                    provisionQueue.addLast(request);
+                }
+            }
+            return;
+        }
+
+        int maxStack = Math.max(1, like.getMaxStackSize());
+        int remaining = amount;
+        while (remaining > 0) {
+            int chunk = Math.min(remaining, maxStack);
+            ItemStack request = normalizeForProvision(like, chunk);
+            if (!request.isEmpty()) {
+                provisionQueue.addLast(request);
+            }
+            remaining -= chunk;
+        }
+    }
+
+    private void drainProvisionQueue() {
+        if (world == null || world.isRemote) return;
+        if (provisionQueue.isEmpty()) return;
+
+        if (tickCounter < nextProvisionTick) return;
+
+        while (!provisionQueue.isEmpty()) {
+            ItemStack head = provisionQueue.peekFirst();
+            if (head == null || head.isEmpty()) {
+                provisionQueue.pollFirst();
+                continue;
+            }
+
+            ItemStack request = head.copy();
+            boolean accepted = GolemProvisioningHelper.requestProvisioning(world, pos, EnumFacing.UP, request, 0);
+            if (accepted) {
+                provisionQueue.pollFirst();
+                lastRequestTick = tickCounter;
+                nextProvisionTick = tickCounter + PROVISION_MIN_INTERVAL;
+                markDirty();
+            } else {
+                nextProvisionTick = tickCounter + PROVISION_RETRY_INTERVAL;
+                markDirty();
+            }
+            break;
+        }
+    }
+
+    private static boolean isCrystal(ItemStack stack) {
+        return stack != null && !stack.isEmpty() && stack.getItem() == ItemsTC.crystalEssence;
+    }
+
+    @Nullable
+    private static Aspect aspectOf(ItemStack stack) {
+        if (!isCrystal(stack)) return null;
+        AspectList aspects = ((ItemTCEssentiaContainer) ItemsTC.crystalEssence).getAspects(stack);
+        return (aspects != null && aspects.size() == 1) ? aspects.getAspects()[0] : null;
+    }
+
     public void dropContents() {
         if (world == null || world.isRemote) return;
         for (int i = 0; i < patterns.getSlots(); i++) {
@@ -351,9 +672,27 @@ public class TileResourceRequester extends TileEntity implements ITickable {
     public @Nullable BlockPos getManagerPos() { return managerPos; }
 
     public void setManagerPos(@Nullable BlockPos pos) {
-        if (!Objects.equals(this.managerPos, pos)) {
-            this.managerPos = (pos == null) ? null : pos.toImmutable();
+        setManagerPos(pos, false);
+    }
+
+    private void setManagerPos(@Nullable BlockPos pos, boolean fromPattern) {
+        boolean previousManager = useManagerForProvision();
+        BlockPos newPos = (pos == null) ? null : pos.toImmutable();
+        boolean newFlag = fromPattern && newPos != null;
+        if (!Objects.equals(this.managerPos, newPos) || this.managerFromPattern != newFlag) {
+            this.managerPos = newPos;
+            this.managerFromPattern = newFlag;
             markDirty();
+
+            boolean nowManager = useManagerForProvision();
+            if (nowManager) {
+                if (!provisionQueue.isEmpty()) {
+                    provisionQueue.clear();
+                    nextProvisionTick = tickCounter;
+                }
+            } else if (previousManager && jobActive && provisionQueue.isEmpty() && !pending.isEmpty()) {
+                resetProvisionQueueFromPending();
+            }
         }
     }
 
@@ -361,6 +700,49 @@ public class TileResourceRequester extends TileEntity implements ITickable {
         if (pos != null && pos.equals(this.managerPos)) {
             setManagerPos(null);
         }
+    }
+
+    public void triggerExternalRequest(int slot, int times) {
+        if (times <= 0) return;
+        if (world != null && !world.isRemote) {
+            syncManagerFromPattern();
+        }
+        enqueueTrigger(slot, times);
+        tryStartQueuedJob();
+    }
+
+    public static ItemStack makeOrderIcon(ItemStack base, BlockPos requesterPos, int slot) {
+        if (requesterPos == null) return ItemStack.EMPTY;
+        ItemStack icon = (base == null) ? ItemStack.EMPTY : base.copy();
+        if (icon.isEmpty()) return ItemStack.EMPTY;
+        icon.setCount(1);
+        NBTTagCompound tag = icon.hasTagCompound() ? icon.getTagCompound().copy() : new NBTTagCompound();
+        NBTTagCompound inner = new NBTTagCompound();
+        inner.setLong(ORDER_TAG_POS, requesterPos.toLong());
+        inner.setInteger(ORDER_TAG_SLOT, Math.max(0, slot));
+        tag.setTag(ORDER_TAG_ROOT, inner);
+        icon.setTagCompound(tag);
+        return icon;
+    }
+
+    public static boolean isOrderIcon(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !stack.hasTagCompound()) return false;
+        NBTTagCompound tag = stack.getTagCompound();
+        return tag != null && tag.hasKey(ORDER_TAG_ROOT, Constants.NBT.TAG_COMPOUND);
+    }
+
+    @Nullable
+    public static BlockPos getOrderIconPos(ItemStack stack) {
+        if (!isOrderIcon(stack)) return null;
+        NBTTagCompound inner = stack.getTagCompound().getCompoundTag(ORDER_TAG_ROOT);
+        if (!inner.hasKey(ORDER_TAG_POS, Constants.NBT.TAG_LONG)) return null;
+        return BlockPos.fromLong(inner.getLong(ORDER_TAG_POS));
+    }
+
+    public static int getOrderIconSlot(ItemStack stack) {
+        if (!isOrderIcon(stack)) return -1;
+        NBTTagCompound inner = stack.getTagCompound().getCompoundTag(ORDER_TAG_ROOT);
+        return inner.getInteger(ORDER_TAG_SLOT);
     }
 
     @Override
@@ -372,9 +754,6 @@ public class TileResourceRequester extends TileEntity implements ITickable {
     @Override
     public <T> T getCapability(Capability<T> capability, @Nullable EnumFacing facing) {
         if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            if (facing == EnumFacing.UP) {
-                return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(patterns);
-            }
             return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(buffer);
         }
         return super.getCapability(capability, facing);
@@ -389,6 +768,7 @@ public class TileResourceRequester extends TileEntity implements ITickable {
         compound.setInteger("Slot", activeSlot);
         compound.setInteger("LastSig", lastSignal);
         if (managerPos != null) compound.setLong("Manager", managerPos.toLong());
+        compound.setBoolean("ManagerPattern", managerFromPattern);
 
         NBTTagList pend = new NBTTagList();
         for (Map.Entry<ItemKey, Integer> e : pending.entrySet()) {
@@ -406,6 +786,24 @@ public class TileResourceRequester extends TileEntity implements ITickable {
         }
         compound.setTag("Sequence", seq);
 
+        NBTTagList queued = new NBTTagList();
+        for (QueuedTrigger trigger : queuedSignals) {
+            if (trigger == null) continue;
+            NBTTagCompound entry = new NBTTagCompound();
+            entry.setInteger("Slot", Math.max(0, trigger.slot));
+            entry.setInteger("Count", Math.max(1, trigger.count));
+            queued.appendTag(entry);
+        }
+        compound.setTag("Queued", queued);
+
+        NBTTagList prov = new NBTTagList();
+        for (ItemStack stack : provisionQueue) {
+            if (stack == null || stack.isEmpty()) continue;
+            prov.appendTag(stack.writeToNBT(new NBTTagCompound()));
+        }
+        compound.setTag("ProvisionQueue", prov);
+        int delay = Math.max(0, nextProvisionTick - tickCounter);
+        compound.setInteger("ProvisionDelay", delay);
         return compound;
     }
 
@@ -419,10 +817,14 @@ public class TileResourceRequester extends TileEntity implements ITickable {
         lastSignal = compound.getInteger("LastSig");
         managerPos = compound.hasKey("Manager", Constants.NBT.TAG_LONG)
                 ? BlockPos.fromLong(compound.getLong("Manager")) : null;
+        managerFromPattern = compound.getBoolean("ManagerPattern") && managerPos != null;
 
         pending.clear();
         baselines.clear();
         sequence.clear();
+        queuedSignals.clear();
+        provisionQueue.clear();
+        nextProvisionTick = 0;
 
         if (compound.hasKey("Pending", Constants.NBT.TAG_LIST)) {
             NBTTagList pend = compound.getTagList("Pending", Constants.NBT.TAG_COMPOUND);
@@ -442,5 +844,29 @@ public class TileResourceRequester extends TileEntity implements ITickable {
                 if (!s.isEmpty()) sequence.add(s);
             }
         }
+
+        if (compound.hasKey("Queued", Constants.NBT.TAG_LIST)) {
+            NBTTagList queued = compound.getTagList("Queued", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < queued.tagCount(); i++) {
+                NBTTagCompound entry = queued.getCompoundTagAt(i);
+                int idx = entry.getInteger("Slot");
+                int cnt = entry.getInteger("Count");
+                if (idx >= 0 && idx < patterns.getSlots() && cnt > 0) {
+                    enqueueTrigger(idx, cnt);
+                }
+            }
+        }
+
+        if (compound.hasKey("ProvisionQueue", Constants.NBT.TAG_LIST)) {
+            NBTTagList prov = compound.getTagList("ProvisionQueue", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < prov.tagCount(); i++) {
+                ItemStack s = new ItemStack(prov.getCompoundTagAt(i));
+                if (!s.isEmpty()) {
+                    provisionQueue.addLast(s);
+                }
+            }
+        }
+
+        nextProvisionTick = compound.getInteger("ProvisionDelay");
     }
 }

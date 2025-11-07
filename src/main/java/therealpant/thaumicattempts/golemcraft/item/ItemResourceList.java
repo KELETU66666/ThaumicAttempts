@@ -22,6 +22,8 @@ import therealpant.thaumicattempts.client.gui.GuiHandler;
  */
 public class ItemResourceList extends ItemBasePattern {
 
+    public static final String TAG_PREVIEW = "Preview";
+
     public ItemResourceList() {
         setMaxStackSize(1);
         setCreativeTab(ThaumicAttempts.CREATIVE_TAB);
@@ -52,12 +54,16 @@ public class ItemResourceList extends ItemBasePattern {
                 if (!s.isEmpty()) ghostInv.setInventorySlotContents(i, s);
             }
         }
+
+        if (ghostInv.getSizeInventory() > 9) {
+            ghostInv.setInventorySlotContents(9, getPreview(pattern));
+        }
     }
 
     /**
      * Записать «призрачный» инвентарь обратно в предмет (с сохранением количества).
      */
-    public static void writeInventoryToStack(ItemStack pattern, NonNullList<ItemStack> grid) {
+    public static void writeInventoryToStack(ItemStack pattern, NonNullList<ItemStack> grid, ItemStack preview) {
         ensureNBT(pattern);
         NBTTagCompound tag = pattern.getTagCompound();
         NBTTagList list = new NBTTagList();
@@ -71,6 +77,15 @@ public class ItemResourceList extends ItemBasePattern {
             list.appendTag(st);
         }
         tag.setTag(TAG_GRID, list);
+
+        if (preview == null || preview.isEmpty()) {
+            tag.removeTag(TAG_PREVIEW);
+        } else {
+            ItemStack copy = preview.copy();
+            NBTTagCompound pv = new NBTTagCompound();
+            copy.writeToNBT(pv);
+            tag.setTag(TAG_PREVIEW, pv);
+        }
     }
 
     /** Прочитать сетку 3×3 как список ItemStack (количество сохраняется). */
@@ -87,6 +102,46 @@ public class ItemResourceList extends ItemBasePattern {
             }
         }
         return grid;
+    }
+
+    public static ItemStack getPreview(ItemStack pattern) {
+        NBTTagCompound tag = pattern.getTagCompound();
+        if (tag != null && tag.hasKey(TAG_PREVIEW, Constants.NBT.TAG_COMPOUND)) {
+            ItemStack stack = new ItemStack(tag.getCompoundTag(TAG_PREVIEW));
+            return stack == null ? ItemStack.EMPTY : stack;
+        }
+        return ItemStack.EMPTY;
+    }
+
+    public static ItemStack getPreviewOrFirstEntry(ItemStack pattern) {
+        ItemStack preview = getPreview(pattern);
+        if (!preview.isEmpty()) {
+            preview = preview.copy();
+            if (preview.getCount() <= 0) preview.setCount(1);
+            return preview;
+        }
+
+        NonNullList<ItemStack> grid = readGrid(pattern);
+        for (ItemStack stack : grid) {
+            if (stack == null || stack.isEmpty()) continue;
+            ItemStack copy = stack.copy();
+            if (copy.getCount() <= 0) copy.setCount(1);
+            return copy;
+        }
+        return ItemStack.EMPTY;
+    }
+
+    public static void setPreview(ItemStack pattern, ItemStack preview) {
+        ensureNBT(pattern);
+        NBTTagCompound tag = pattern.getTagCompound();
+        if (preview == null || preview.isEmpty()) {
+            if (tag != null) tag.removeTag(TAG_PREVIEW);
+        } else {
+            ItemStack copy = preview.copy();
+            NBTTagCompound pv = new NBTTagCompound();
+            copy.writeToNBT(pv);
+            tag.setTag(TAG_PREVIEW, pv);
+        }
     }
 
     @Override

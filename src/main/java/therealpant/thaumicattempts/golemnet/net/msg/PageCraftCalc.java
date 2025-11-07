@@ -6,6 +6,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.items.ItemHandlerHelper;
 import therealpant.thaumicattempts.golemnet.tile.TileMirrorManager;
 import therealpant.thaumicattempts.golemnet.tile.TilePatternRequester;
+import therealpant.thaumicattempts.golemnet.tile.TileResourceRequester;
 import therealpant.thaumicattempts.util.ItemKey;
 
 import javax.annotation.Nullable;
@@ -53,6 +54,12 @@ public final class PageCraftCalc {
             if (result == null || result.isEmpty()) {
                 makeCounts.add(0);
                 possible.add(false);
+                continue;
+            }
+
+            if (TileResourceRequester.isOrderIcon(result)) {
+                makeCounts.add(0);
+                possible.add(true);
                 continue;
             }
 

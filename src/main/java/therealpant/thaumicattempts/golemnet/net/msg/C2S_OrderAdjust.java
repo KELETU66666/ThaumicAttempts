@@ -8,6 +8,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.*;
 import therealpant.thaumicattempts.golemnet.tile.TileOrderTerminal;
+import therealpant.thaumicattempts.golemnet.tile.TileResourceRequester;
 import therealpant.thaumicattempts.util.CraftYieldHelper;
 import therealpant.thaumicattempts.util.ItemKey;
 
@@ -57,12 +58,19 @@ public class C2S_OrderAdjust implements IMessage {
 
                 // В крафтовой вкладке «+1» означает «1 крафт».
                 // Преобразуем в количество РЕЗУЛЬТАТА (умножаем на выход рецепта).
-                if (msg.craftTab && delta != 0) {
+                boolean resourceOrderIcon = msg.key != null && TileResourceRequester.isOrderIcon(msg.key);
+
+                if (msg.craftTab && delta != 0 && !resourceOrderIcon) {
                     int yield = CraftYieldHelper.getCraftYield(w, msg.key);
                     if (yield < 1) yield = 1;
                     // знак delta сохраняем (ЛКМ/ПКМ), домножаем модуль.
                     if (delta > 0) delta = delta * yield;
                     else delta = -(Math.abs(delta) * yield);
+                }
+
+                if (resourceOrderIcon && delta != 0) {
+                    int magnitude = Math.max(1, Math.abs(delta));
+                    delta = delta >= 0 ? magnitude : -magnitude;
                 }
 
                 ItemStack key = msg.key;

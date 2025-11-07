@@ -25,8 +25,8 @@ public class SlotGhost extends Slot {
 
     @Override
     public int getSlotStackLimit() {
-        // Обычно 1 достаточно для «призрака»
-        return 1;
+        // Используем лимит внутреннего инвентаря (для списков ресурсов нужно сохранять количество)
+        return inventory.getInventoryStackLimit();
     }
 
     @Override

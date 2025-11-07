@@ -73,10 +73,14 @@ public class ContainerCraftPattern extends Container {
         int gap = 8;                              // зазор над сеткой
         int resultY = GRID_TOP - (24 + gap);      // 16px высота иконки + зазор
 
-        this.addSlotToContainer(new Slot(ghostInv, RESULT_IDX, resultX, resultY) {
-            @Override public boolean isItemValid(ItemStack stack) { return false; }
-            @Override public boolean canTakeStack(EntityPlayer playerIn) { return false; }
-        });
+        if (resourceListMode) {
+            this.addSlotToContainer(new SlotGhost(ghostInv, RESULT_IDX, resultX, resultY));
+        } else {
+            this.addSlotToContainer(new Slot(ghostInv, RESULT_IDX, resultX, resultY) {
+                @Override public boolean isItemValid(ItemStack stack) { return false; }
+                @Override public boolean canTakeStack(EntityPlayer playerIn) { return false; }
+            });
+        }
 
         // --- Инвентарь игрока ---
         addPlayerInventorySlots(playerInv, 8, 130);
@@ -103,6 +107,10 @@ public class ContainerCraftPattern extends Container {
     /** Пересчитать и обновить слот результата по текущей сетке. */
     private void updateResult() {
         // сформируем временный ItemStack шаблона с актуальной сеткой в NBT (чтобы calcResultPreview её увидел)
+        if (resourceListMode) {
+            return;
+        }
+
         ItemStack out = ItemStack.EMPTY;
         if (!patternStack.isEmpty() && patternStack.getItem() instanceof ItemCraftPattern) {
             ItemStack tmp = patternStack.copy();
@@ -193,7 +201,8 @@ public class ContainerCraftPattern extends Container {
         if (patternStack.getItem() instanceof ItemCraftPattern) {
             ItemCraftPattern.writeInventoryToStack(patternStack, grid, ItemStack.EMPTY);
         } else if (patternStack.getItem() instanceof ItemResourceList) {
-            ItemResourceList.writeInventoryToStack(patternStack, grid);
+            ItemStack preview = ghostInv.getStackInSlot(RESULT_IDX).copy();
+            ItemResourceList.writeInventoryToStack(patternStack, grid, preview);
         }
     }
 

@@ -17,6 +17,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import therealpant.thaumicattempts.ThaumicAttempts;
+import therealpant.thaumicattempts.client.gui.GuiHandler;
 import therealpant.thaumicattempts.golemcraft.item.ItemResourceList;
 import therealpant.thaumicattempts.golemnet.tile.TileResourceRequester;
 
@@ -94,7 +95,9 @@ public class BlockResourceRequester extends BlockHorizontal {
             }
         }
 
-        return false;
+        player.openGui(ThaumicAttempts.INSTANCE, GuiHandler.GUI_RESOURCE_REQUESTER, world,
+                pos.getX(), pos.getY(), pos.getZ());
+        return true;
     }
 
     @Override
