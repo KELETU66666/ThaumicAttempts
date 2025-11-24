@@ -15,22 +15,33 @@ public class ContainerResourceRequester extends Container {
 
     public static final int CELL = 18;
 
+    /** ===== PATTERN (ItemResourceList) – поле 3×5 ===== */
     public static final int PATTERN_COLS = 5;
     public static final int PATTERN_ROWS = 3;
 
-    public static final int BUFFER_COLS = 9;
+    /** ===== ВНУТРЕННИЙ ИНВЕНТАРЬ БЛОКА – 3×3 ===== */
+    public static final int BUFFER_COLS = 3;
     public static final int BUFFER_ROWS = 3;
 
-    public static final int PATTERN_LEFT = 43;
-    public static final int PATTERN_TOP = 17;
+    /** ===== БАЗОВЫЕ КООРДИНАТЫ ===== */
 
-    public static final int PATTERN_TO_BUFFER_GAP = 12;
-    public static final int BUFFER_LEFT = 8;
-    public static final int BUFFER_TOP = PATTERN_TOP + PATTERN_ROWS * CELL + PATTERN_TO_BUFFER_GAP;
-
+    // Игрок (оставляем как был)
     public static final int PLAYER_INV_LEFT = 8;
-    public static final int PLAYER_INV_TOP = BUFFER_TOP + BUFFER_ROWS * CELL + 14;
-    public static final int HOTBAR_TOP = PLAYER_INV_TOP + 58;
+
+    // СТАРАЯ позиция буфера была (LEFT=8, TOP≈83). Ставим туда PATTERN 3×5.
+    public static final int PATTERN_LEFT = 8;
+    public static final int PATTERN_TOP  = 83;
+
+    // Буфер 3×3: по Y — там же, где и PATTERN,
+    // по X — совмещаем 3 колонки с 7-8-9 колонками инвентаря игрока.
+    // Колонки игрока: x = PLAYER_INV_LEFT + col * CELL, col=0..8
+    // Нам нужны col = 6,7,8 → BUFFER_LEFT = x(col=6)
+    public static final int BUFFER_LEFT = PLAYER_INV_LEFT + (9 - BUFFER_COLS) * CELL; // 8 + 6*18 = 116
+    public static final int BUFFER_TOP  = PATTERN_TOP; // по Y оставляем как было у старого буфера
+
+    // Инвентарь игрока – под всем этим
+    public static final int PLAYER_INV_TOP = BUFFER_TOP + BUFFER_ROWS * CELL + 14; // 83 + 3*18 + 14 = 151
+    public static final int HOTBAR_TOP     = PLAYER_INV_TOP + 58;                  // 209
 
     private final TileResourceRequester tile;
     private final IItemHandler patternHandler;
@@ -47,6 +58,7 @@ public class ContainerResourceRequester extends Container {
         this.patternHandler = tile.getPatternHandler();
         this.bufferHandler = tile.getBufferHandler();
 
+        // ===== PATTERN 3×5 =====
         if (patternHandler != null && patternHandler.getSlots() > 0) {
             patternStart = this.inventorySlots.size();
             int slots = Math.min(patternHandler.getSlots(), PATTERN_COLS * PATTERN_ROWS);
@@ -63,9 +75,10 @@ public class ContainerResourceRequester extends Container {
             patternEnd = this.inventorySlots.size();
         }
 
+        // ===== БУФЕР 3×3 =====
         if (bufferHandler != null && bufferHandler.getSlots() > 0) {
             bufferStart = this.inventorySlots.size();
-            int slots = Math.min(bufferHandler.getSlots(), BUFFER_COLS * BUFFER_ROWS);
+            int slots = Math.min(bufferHandler.getSlots(), BUFFER_COLS * BUFFER_ROWS); // теперь максимум 9
             for (int i = 0; i < slots; i++) {
                 int col = i % BUFFER_COLS;
                 int row = i / BUFFER_COLS;
@@ -79,8 +92,10 @@ public class ContainerResourceRequester extends Container {
             bufferEnd = this.inventorySlots.size();
         }
 
+        // ===== ИНВЕНТАРЬ ИГРОКА =====
         playerStart = this.inventorySlots.size();
 
+        // 9×3
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 9; c++) {
                 this.addSlotToContainer(new Slot(
@@ -92,6 +107,7 @@ public class ContainerResourceRequester extends Container {
             }
         }
 
+        // хотбар
         for (int c = 0; c < 9; c++) {
             this.addSlotToContainer(new Slot(
                     playerInv,

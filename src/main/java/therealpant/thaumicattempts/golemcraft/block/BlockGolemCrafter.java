@@ -17,6 +17,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import therealpant.thaumicattempts.ThaumicAttempts;
 import therealpant.thaumicattempts.client.gui.GuiHandler;
 import therealpant.thaumicattempts.golemcraft.tile.TileEntityGolemCrafter;
+import net.minecraft.init.Blocks;
 
 import javax.annotation.Nullable;
 
@@ -101,4 +102,6 @@ public class BlockGolemCrafter extends Block {
 
     // (опционально, если есть)
     @Override public float getAmbientOcclusionLightValue(IBlockState s) { return 1.0F; }
+
+
 }

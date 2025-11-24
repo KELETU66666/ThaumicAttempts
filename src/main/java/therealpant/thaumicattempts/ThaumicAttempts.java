@@ -19,6 +19,7 @@ import therealpant.thaumicattempts.client.gui.GuiHandler;
 import therealpant.thaumicattempts.data.TAAlchemyRecipes;
 import therealpant.thaumicattempts.data.TAInfusionRecipes;
 
+import therealpant.thaumicattempts.data.research.TAResearchAddenda;
 import therealpant.thaumicattempts.golemcraft.ModBlocksItems;
 import therealpant.thaumicattempts.golemcraft.tile.TileArcaneEarBand;
 import therealpant.thaumicattempts.golemcraft.tile.TileEntityArcaneCrafter;
@@ -89,14 +90,17 @@ public class ThaumicAttempts {
                 therealpant.thaumicattempts.golemnet.tile.TileGolemDispatcher.class,
                 new ResourceLocation(ThaumicAttempts.MODID, "golem_dispatcher")
         );
-        ThaumcraftApi.registerResearchLocation(
-                new ResourceLocation(ThaumicAttempts.MODID, "research")
-        );
+
+        //Research
+        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemcraft"));
+        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemcraft_advanced"));
+        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemintegration"));
+        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemmirrors"));
+        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golem_delivery"));
+        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golem_controling"));
 
         MinecraftForge.EVENT_BUS.register(ThaumcraftProvisionHelper.class);
         // 3) Прокси preInit (если нужно)
-
-
         proxy.preInit(e);
     }
 
@@ -104,17 +108,6 @@ public class ThaumicAttempts {
     public void init(FMLInitializationEvent e) {
         // GUI-handler — нужен один раз и один класс (твой общий GuiHandler)
         NetworkRegistry.INSTANCE.registerGuiHandler(ThaumicAttempts.INSTANCE, new GuiHandler());
-
-        //Addenda
-        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/arcane_ear_add"));
-        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/eldritch_add"));
-
-        //Research
-        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemcraft"));
-        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemcraft_advanced"));
-        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemintegration"));
-        ThaumcraftApi.registerResearchLocation(new ResourceLocation(ThaumicAttempts.MODID, "research/golemmirrors"));
-
 
         proxy.init(e);
     }
@@ -124,6 +117,8 @@ public class ThaumicAttempts {
 
         TAInfusionRecipes.register();
         TAAlchemyRecipes.register();
+        TAResearchAddenda.injectEldritchVoidTileAddendum();
+        TAResearchAddenda.injectArcaneEarAddendum();
 
         proxy.postInit(e);
     }

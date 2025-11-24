@@ -1,19 +1,31 @@
 package therealpant.thaumicattempts.client.gui;
 
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.util.ResourceLocation;
+import therealpant.thaumicattempts.ThaumicAttempts;
 import therealpant.thaumicattempts.golemnet.container.ContainerResourceRequester;
 import therealpant.thaumicattempts.golemnet.tile.TileResourceRequester;
 
 public class GuiResourceRequester extends GuiContainer {
 
-    private static final int PANEL_BORDER_COLOR = 0xFF2F2B27;
-    private static final int PANEL_INNER_COLOR = 0xFF131214;
-    private static final int SLOT_BORDER_COLOR = 0xFF6F675E;
-    private static final int SLOT_FILL_COLOR = 0xFF0B0A0C;
+    private static final ResourceLocation TEX_TERMINAL =
+            new ResourceLocation(ThaumicAttempts.MODID, "textures/gui/gui_terminal.png");
+    private static final ResourceLocation TEX_CRAFTER =
+            new ResourceLocation(ThaumicAttempts.MODID, "textures/gui/gui_crafter3_5.png");
+    private static final ResourceLocation TEX_BASE_TC =
+            new ResourceLocation("thaumcraft","textures/gui/gui_base.png");
+    // gui_terminal: весь атлас 128×128, вырез под 3×3 – 60×60 из (0,0)
+    private static final int TERM_U = 0, TERM_V = 166;
+    private static final int TERM_W = 60, TERM_H = 60;
+    private static final int TERM_TEX_W = 128, TERM_TEX_H = 128;
+
+    // gui_crafter3_5: весь атлас 354×256, вырез под 3×5 – 60×96 из (0,60)
+    private static final int CRAFTER_U = 0, CRAFTER_V = 60;
+    private static final int CRAFTER_W = 60, CRAFTER_H = 96;
+    private static final int CRAFTER_TEX_W = 354, CRAFTER_TEX_H = 256;
 
     private final TileResourceRequester tile;
 
@@ -31,61 +43,51 @@ public class GuiResourceRequester extends GuiContainer {
         this.renderHoveredToolTip(mouseX, mouseY);
     }
 
+    // Все надписи убираем
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        String title = "Resource Requester";
-        if (tile != null && tile.getWorld() != null) {
-            title = tile.getWorld().getBlockState(tile.getPos()).getBlock().getLocalizedName();
-        }
-        this.fontRenderer.drawString(title, 8, 6, 0xE0E0E0);
-        this.fontRenderer.drawString(I18n.format("thaumicattempts.gui.resource_requester.patterns"), 8, 20, 0xC8C8C8);
-        this.fontRenderer.drawString(I18n.format("thaumicattempts.gui.resource_requester.buffer"), 8, 86, 0xC8C8C8);
-        this.fontRenderer.drawString(I18n.format("container.inventory"), 8, this.ySize - 96 + 2, 0xC8C8C8);
     }
 
     @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1F, 1F, 1F, 1F);
         int left = this.guiLeft;
-        int top = this.guiTop;
+        int top  = this.guiTop;
 
-        drawPanel(left + ContainerResourceRequester.PATTERN_LEFT,
-                top + ContainerResourceRequester.PATTERN_TOP,
-                ContainerResourceRequester.PATTERN_COLS,
-                ContainerResourceRequester.PATTERN_ROWS);
+        // === PATTERN 3×5 (ItemResourceList) ===
+        Minecraft.getMinecraft().getTextureManager().bindTexture(TEX_CRAFTER);
+        // левый верх подложки привязываем к левому верхнему углу сетки PATTERN
+        this.drawModalRectWithCustomSizedTexture(
+                left + ContainerResourceRequester.PATTERN_LEFT - 4,
+                top  + ContainerResourceRequester.PATTERN_TOP  - 4,
+                CRAFTER_U, CRAFTER_V,
+                CRAFTER_H, CRAFTER_W,
+                CRAFTER_TEX_W, CRAFTER_TEX_H
+        );
 
-        drawPanel(left + ContainerResourceRequester.BUFFER_LEFT,
-                top + ContainerResourceRequester.BUFFER_TOP,
-                ContainerResourceRequester.BUFFER_COLS,
-                ContainerResourceRequester.BUFFER_ROWS);
+        // === BUFFER 3×3 (внутренний инвентарь блока) ===
+        Minecraft.getMinecraft().getTextureManager().bindTexture(TEX_TERMINAL);
+        this.drawModalRectWithCustomSizedTexture(
+                left + ContainerResourceRequester.BUFFER_LEFT - 4,
+                top  + ContainerResourceRequester.BUFFER_TOP  - 4,
+                0,0,
+                TERM_W, TERM_H,
+                TERM_TEX_W, TERM_TEX_H
+        );
 
-        drawPanel(left + ContainerResourceRequester.PLAYER_INV_LEFT,
-                top + ContainerResourceRequester.PLAYER_INV_TOP,
-                9, 3);
+        /* ===== Инвентарь игрока (фон из gui_terminal, тот же вырез что и у 3×3) ===== */
+        int invLeft = left + ContainerResourceRequester.PLAYER_INV_LEFT;
+        int invTop  = top  + ContainerResourceRequester.PLAYER_INV_TOP;
 
-        drawPanel(left + ContainerResourceRequester.PLAYER_INV_LEFT,
-                top + ContainerResourceRequester.HOTBAR_TOP,
-                9, 1);
+        // общая область: 9×3 + зазор + хотбар, с рамкой по 4px
+        int areaX = invLeft - 4;
+        int areaY = invTop  - 4;
+
+        mc.getTextureManager().bindTexture(TEX_BASE_TC);
+        this.drawTexturedModalRect(
+                areaX-4, areaY-4,
+                TERM_U, TERM_V,          // тот же угол обрезки, что и у 3×3
+                176, 90   // габарит png (128×128)
+        );
     }
-
-    private void drawPanel(int left, int top, int cols, int rows) {
-        int width = cols * ContainerResourceRequester.CELL;
-        int height = rows * ContainerResourceRequester.CELL;
-
-        Gui.drawRect(left - 4, top - 4, left + width + 4, top + height + 4, PANEL_BORDER_COLOR);
-        Gui.drawRect(left - 3, top - 3, left + width + 3, top + height + 3, 0xFF3F3934);
-        Gui.drawRect(left - 2, top - 2, left + width + 2, top + height + 2, 0xFF544E47);
-        Gui.drawRect(left - 1, top - 1, left + width + 1, top + height + 1, PANEL_BORDER_COLOR);
-        Gui.drawRect(left, top, left + width, top + height, PANEL_INNER_COLOR);
-
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < cols; col++) {
-                int slotX = left + col * ContainerResourceRequester.CELL;
-                int slotY = top + row * ContainerResourceRequester.CELL;
-                Gui.drawRect(slotX, slotY, slotX + 16, slotY + 16, SLOT_BORDER_COLOR);
-                Gui.drawRect(slotX + 1, slotY + 1, slotX + 15, slotY + 15, SLOT_FILL_COLOR);
-            }
-        }
-    }
-
 }

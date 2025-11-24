@@ -8,6 +8,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockRenderLayer;
+import net.minecraft.util.EnumBlockRenderType;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -27,7 +28,7 @@ public class BlockMirrorManager extends Block {
         setLightOpacity(0);
         setHardness(2.0F);
         setResistance(10.0F);
-        setTranslationKey("mirror_manager");
+        setTranslationKey(ThaumicAttempts.MODID + ".mirror_manager");
         setRegistryName(ThaumicAttempts.MODID, "mirror_manager");
         setCreativeTab(ThaumicAttempts.CREATIVE_TAB);
     }
@@ -137,6 +138,8 @@ public class BlockMirrorManager extends Block {
         therealpant.thaumicattempts.golemnet.tile.TileMirrorManager.deactivateUpgradesAround(world, pos);
         super.breakBlock(world, pos, state);
     }
+
+    @Override public EnumBlockRenderType getRenderType(IBlockState state) { return EnumBlockRenderType.INVISIBLE; }
 }
 
 

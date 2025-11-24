@@ -20,6 +20,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import therealpant.thaumicattempts.ThaumicAttempts;
 import therealpant.thaumicattempts.client.gui.GuiHandlerOrderTerminal;
 import therealpant.thaumicattempts.golemnet.tile.TileOrderTerminal;
+import therealpant.thaumicattempts.golemnet.tile.TileResourceRequester;
 
 public class BlockOrderTerminal extends Block {
 

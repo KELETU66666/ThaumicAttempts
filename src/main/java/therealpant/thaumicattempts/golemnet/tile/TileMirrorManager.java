@@ -20,6 +20,13 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.wrapper.InvWrapper;
+import software.bernie.geckolib3.core.IAnimatable;
+import software.bernie.geckolib3.core.PlayState;
+import software.bernie.geckolib3.core.builder.AnimationBuilder;
+import software.bernie.geckolib3.core.controller.AnimationController;
+import software.bernie.geckolib3.core.event.predicate.AnimationEvent;
+import software.bernie.geckolib3.core.manager.AnimationData;
+import software.bernie.geckolib3.core.manager.AnimationFactory;
 import thaumcraft.api.ThaumcraftInvHelper;
 import thaumcraft.api.golems.GolemHelper;
 import thaumcraft.api.golems.tasks.Task;
@@ -46,8 +53,8 @@ import java.util.UUID;
 /**
  * Менеджер: батчи + единая «корона» зеркал (активные/подвешенные), без дюпа.
  */
-public class TileMirrorManager extends TileEntity implements ITickable {
-
+public class TileMirrorManager extends TileEntity implements ITickable, IAnimatable {
+    private final AnimationFactory factory = new AnimationFactory(this);
     /* ===================== Базовые лимиты и апгрейды ===================== */
     private int dispatcherRoundRobinIndex = 0;
     int craftsScheduled = 0;
@@ -233,6 +240,29 @@ public class TileMirrorManager extends TileEntity implements ITickable {
     private long nextPhaseSeed() {
         long base = (renderSeed == 0L ? (renderSeed = world.getTotalWorldTime() ^ pos.toLong()) : renderSeed);
         return base + world.rand.nextInt(10_000);
+    }
+
+    @Override
+    public void registerControllers(AnimationData data) {
+        data.addAnimationController(new AnimationController<>(
+                this,
+                "main",
+                0, // delay
+                this::predicate
+        ));
+    }
+
+    private <E extends IAnimatable> PlayState predicate(AnimationEvent<E> event) {
+        // Проигрываем нашу анимацию из JSON:
+        event.getController().setAnimation(
+                new AnimationBuilder().addAnimation("animation.model.mirror_manager", true)
+        );
+        return PlayState.CONTINUE;
+    }
+
+    @Override
+    public AnimationFactory getFactory() {
+        return factory;
     }
 
     @Nullable

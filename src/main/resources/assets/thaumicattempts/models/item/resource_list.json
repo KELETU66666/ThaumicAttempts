@@ -1,3 +1,6 @@
 {
-  "parent": "thaumicattempts:block/order_terminal"
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "thaumicattempts:items/resourse_list"
+  }
 }

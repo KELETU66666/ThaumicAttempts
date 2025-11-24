@@ -10,16 +10,19 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraft.item.EnumDyeColor;
 
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
+import thaumcraft.api.blocks.BlocksTC;
 import thaumcraft.api.crafting.ShapedArcaneRecipe;
 import thaumcraft.api.items.ItemsTC;
 
 import thaumcraft.common.blocks.BlockTC;
 import therealpant.thaumicattempts.ThaumicAttempts;
+import therealpant.thaumicattempts.golemcraft.ModBlocksItems;
 
-import static thaumcraft.api.blocks.BlocksTC.stoneEldritchTile;
+import static thaumcraft.api.blocks.BlocksTC.*;
 
 @Mod.EventBusSubscriber(modid = ThaumicAttempts.MODID)
 public final class TAArcaneRecipes {
@@ -56,14 +59,13 @@ public final class TAArcaneRecipes {
                     150,
                     new AspectList().add(Aspect.ORDER, 2).add(Aspect.EARTH, 2).add(Aspect.ENTROPY, 2),
                     new ItemStack(Item.getByNameOrId(ThaumicAttempts.MODID + ":craft_pattern")),
-                    "PAP",
-                    "GMG",
-                    "PSP",
-                    'P', new ItemStack(Item.getItemFromBlock(Block.getBlockFromName("thaumcraft:plank_greatwood"))),
+                    "GSG",
+                    "GBG",
+                    "GAG",
                     'A', Blocks.CRAFTING_TABLE,
                     'G', "ingotGold",
-                    'M', net.minecraft.init.Items.MAP,
-                    'S', new ItemStack(ItemsTC.mind, 1, 0)
+                    'B', net.minecraft.init.Items.BOOK,
+                    'S', new ItemStack(ItemsTC.seals, 1,15)
             );
             pat1.setRegistryName(new ResourceLocation(ThaumicAttempts.MODID, "pattern_craft"));
             e.getRegistry().register(pat1);
@@ -78,14 +80,14 @@ public final class TAArcaneRecipes {
                     150,
                     new AspectList().add(Aspect.AIR, 2).add(Aspect.ORDER, 2).add(Aspect.EARTH, 2),
                     new ItemStack(Item.getByNameOrId(ThaumicAttempts.MODID + ":arcane_pattern")),
-                    "PAP",
-                    "GMG",
-                    "PSP",
-                    'P', new ItemStack(Item.getItemFromBlock(Block.getBlockFromName("thaumcraft:plank_greatwood"))),
+                    "GSG",
+                    "GBG",
+                    "GAG",
                     'A', new ItemStack(Item.getItemFromBlock(Block.getBlockFromName("thaumcraft:arcane_workbench"))),
                     'G', "ingotGold",
-                    'M', net.minecraft.init.Items.MAP,
-                    'S', new ItemStack(ItemsTC.mind, 1, 0)
+                    'B', net.minecraft.init.Items.BOOK,
+                    'S', new ItemStack(ItemsTC.seals, 1,15)
+
             );
             pat2.setRegistryName(new ResourceLocation(ThaumicAttempts.MODID, "pattern_arcane"));
             e.getRegistry().register(pat2);
@@ -98,15 +100,18 @@ public final class TAArcaneRecipes {
             ShapedArcaneRecipe r = new ShapedArcaneRecipe(
                     new ResourceLocation(ThaumicAttempts.MODID, "order_terminal"),
                     "TA_GOLEM_MIRRORS",
-                    100,
+                    200,
                     new AspectList().add(Aspect.AIR, 2).add(Aspect.FIRE, 2),
                     new ItemStack(Item.getByNameOrId(ThaumicAttempts.MODID + ":order_terminal")),
-                    " B ",
+                    "BDA",
                     " T ",
-                    " S ",
+                    "CSC",
                     'B', net.minecraft.init.Items.BOOK,
+                    'D', new ItemStack(Item.getItemFromBlock(BlocksTC.banners.get(EnumDyeColor.RED))),
+                    'A', new ItemStack(ItemsTC.scribingTools),
                     'T', new ItemStack(Item.getItemFromBlock(Block.getBlockFromName("thaumcraft:table_wood"))),
-                    'S', Blocks.BOOKSHELF
+                    'S', Blocks.BOOKSHELF,
+                    'C', new ItemStack(Item.getItemFromBlock(slabGreatwood))
             );
             r.setRegistryName(new ResourceLocation(ThaumicAttempts.MODID, "order_terminal"));
             e.getRegistry().register(r);
@@ -127,7 +132,7 @@ public final class TAArcaneRecipes {
                     "MPM",
                     "EVE",
                     'E', new ItemStack(Item.getItemFromBlock(stoneEldritchTile)),
-                    'V', new ItemStack(ItemsTC.plate,1,3),
+                    'V', new ItemStack(ItemsTC.plate, 1, 3),
                     'M', new ItemStack(Item.getByNameOrId("thaumcraft:brain_box")),
                     'P', new ItemStack(ItemsTC.primordialPearl, 1, net.minecraftforge.oredict.OreDictionary.WILDCARD_VALUE)
             );
@@ -150,7 +155,7 @@ public final class TAArcaneRecipes {
                     "GPG",
                     "EVE",
                     'E', new ItemStack(Item.getItemFromBlock(stoneEldritchTile)),
-                    'V', new ItemStack(ItemsTC.plate,1,3),
+                    'V', new ItemStack(ItemsTC.plate, 1, 3),
                     'G', new ItemStack(ItemsTC.mirroredGlass),
                     'P', new ItemStack(ItemsTC.primordialPearl, 1, net.minecraftforge.oredict.OreDictionary.WILDCARD_VALUE)
             );
@@ -158,6 +163,46 @@ public final class TAArcaneRecipes {
             e.getRegistry().register(stabilizer);
         } catch (Throwable t) {
             System.out.println("[TA] Skip mirror_stabilizer_arcane: " + t);
+        }
+        // --------- Великодревесная коробка (Arcane Workbench, 200 vis)
+        try {
+            ShapedArcaneRecipe greatwood_box = new ShapedArcaneRecipe(
+                    new ResourceLocation(ThaumicAttempts.MODID, "resource_requester_arcane"),
+                    "TA_GOLEMDELIVERY",
+                    200,
+                    new AspectList().add(Aspect.AIR, 2).add(Aspect.FIRE, 2).add(Aspect.ORDER, 2),
+                    new ItemStack(Item.getByNameOrId(ThaumicAttempts.MODID + ":resource_requester")),
+                    "LBL",
+                    "SMS",
+                    "LCL",
+                    'L', new ItemStack(Item.getItemFromBlock(plankGreatwood)),
+                    'B', new ItemStack(Item.getItemFromBlock(BlocksTC.banners.get(EnumDyeColor.RED))),
+                    'S', new ItemStack(Item.getItemFromBlock(slabGreatwood)),
+                    'M', new ItemStack(ItemsTC.mind, 1, 1),
+                    'C', new ItemStack(Item.getItemFromBlock(hungryChest))
+            );
+            greatwood_box.setRegistryName(new ResourceLocation(ThaumicAttempts.MODID, "resource_requester_arcane"));
+            e.getRegistry().register(greatwood_box);
+        } catch (Throwable t) {
+            System.out.println("[TA] Skip resource_requester: " + t);
+        }
+        try{
+            ShapedArcaneRecipe item_list = new ShapedArcaneRecipe(
+                 new ResourceLocation(ThaumicAttempts.MODID, "resource_list_arcane"),
+                    "TA_GOLEMDELIVERY",
+                    150,
+                    new AspectList().add(Aspect.ORDER, 2).add(Aspect.WATER, 2),
+                    new ItemStack(ModBlocksItems.RESOURCE_LIST),
+                    "GSG", "GBG", "GHG",
+                    'S', new ItemStack(ItemsTC.seals, 1,15),
+                    'B', net.minecraft.init.Items.BOOK,
+                    'G', "ingotGold",
+                    'H', new ItemStack(Item.getItemFromBlock(hungryChest))
+            );
+            item_list.setRegistryName(new ResourceLocation(ThaumicAttempts.MODID, "resource_list_arcane"));
+            e.getRegistry().register(item_list);
+        } catch (Throwable t) {
+            System.out.println("[TA] Skip resource_list: " + t);
         }
     }
 }

@@ -17,6 +17,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import therealpant.thaumicattempts.ThaumicAttempts;
 import therealpant.thaumicattempts.golemnet.tile.TilePatternRequester;
+import net.minecraft.init.Blocks;
 
 import javax.annotation.Nullable;
 
@@ -30,7 +31,7 @@ public class BlockPatternRequester extends Block {
         setLightOpacity(0);
         setHardness(2.0F);
         setResistance(10.0F);
-        setTranslationKey("pattern_requester");
+        setTranslationKey(ThaumicAttempts.MODID + ".pattern_requester");
         setRegistryName(ThaumicAttempts.MODID, "pattern_requester");
         setCreativeTab(ThaumicAttempts.CREATIVE_TAB);
         setDefaultState(this.blockState.getBaseState().withProperty(FACING, EnumFacing.UP));

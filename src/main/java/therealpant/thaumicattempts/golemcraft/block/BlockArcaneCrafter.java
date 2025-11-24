@@ -16,6 +16,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import therealpant.thaumicattempts.ThaumicAttempts;
 import therealpant.thaumicattempts.client.gui.GuiHandler;
 import therealpant.thaumicattempts.golemcraft.tile.TileEntityArcaneCrafter;
+import therealpant.thaumicattempts.golemnet.tile.TileResourceRequester;
 
 import javax.annotation.Nullable;
 
@@ -46,11 +47,6 @@ public class BlockArcaneCrafter extends Block {
             return true;
         }
         return false;
-    }
-
-    @Override public void breakBlock(World w, BlockPos pos, IBlockState st) {
-        super.breakBlock(w, pos, st);
-        w.removeTileEntity(pos);
     }
 
     @Override public boolean isOpaqueCube(IBlockState s){ return false; }

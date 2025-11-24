@@ -1,4 +1,4 @@
-// src/main/java/therealpant/thaumicattempts/client/render/RenderMirrorManager.java
+// src/main/java/therealpant/thaumicattempts/client/render/RenderMirrorManagerGeo.java
 package therealpant.thaumicattempts.client.render;
 
 import net.minecraft.client.Minecraft;
@@ -12,10 +12,15 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import software.bernie.geckolib3.renderers.geo.GeoBlockRenderer;
+import thaumcraft.api.blocks.BlocksTC;
+import therealpant.thaumicattempts.client.model.MirrorManagerModel;
 import therealpant.thaumicattempts.golemnet.tile.TileMirrorManager;
 
+import java.util.List;
+
 @SideOnly(Side.CLIENT)
-public class RenderMirrorManager extends net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer<TileMirrorManager> {
+public class RenderMirrorManagerGeo extends GeoBlockRenderer<TileMirrorManager> {
 
     private static final double RADIUS = 1.6;
     private static final float  BASE_Y = 1.35f;
@@ -26,16 +31,29 @@ public class RenderMirrorManager extends net.minecraft.client.renderer.tileentit
     private static final float  SCALE = 0.60f;
     private static final float  RING_SHIFT_YAW = 30f;
 
-    private final ItemStack renderMirror = new ItemStack(thaumcraft.api.blocks.BlocksTC.mirror);
+    private final ItemStack renderMirror = new ItemStack(BlocksTC.mirror);
+
+    public RenderMirrorManagerGeo() {
+        super(new MirrorManagerModel());
+    }
 
     private static Vec3d addXYZ(Vec3d v, double dx, double dy, double dz) {
         return new Vec3d(v.x + dx, v.y + dy, v.z + dz);
     }
 
     @Override
-    public void render(TileMirrorManager te, double x, double y, double z, float partialTicks, int destroyStage, float alpha) {
+    public void render(TileMirrorManager te,
+                       double x, double y, double z,
+                       float partialTicks,
+                       int destroyStage,
+                       float alpha) {
+
         if (te == null || te.getWorld() == null) return;
 
+        // 1) Сначала рисуем гео-модель (основание + “шайба” с костями)
+        super.render(te, x, y, z, partialTicks, destroyStage, alpha);
+
+        // 2) Поверх — наш старый GL-обвес с зеркалами и предметами
         GlStateManager.pushMatrix();
         GlStateManager.translate(x + 0.5, y, z + 0.5);
         GlStateManager.color(1F, 1F, 1F, 1F);
@@ -49,8 +67,8 @@ public class RenderMirrorManager extends net.minecraft.client.renderer.tileentit
 
         long t = te.getWorld().getTotalWorldTime();
 
-        // === 1) АКТИВНЫЕ ЗЕРКАЛА (как раньше) ===
-        java.util.List<TileMirrorManager.MirrorSlot> mirrors = te.getRenderMirrors();
+        // === 1) АКТИВНЫЕ ЗЕРКАЛА ===
+        List<TileMirrorManager.MirrorSlot> mirrors = te.getRenderMirrors();
         for (int i = 0; i < mirrors.size() && i < 24; i++) {
             TileMirrorManager.MirrorSlot m = mirrors.get(i);
             float base = m.slot * 60f;
@@ -76,19 +94,22 @@ public class RenderMirrorManager extends net.minecraft.client.renderer.tileentit
 
             BlockPos lp = new BlockPos(te.getPos().getX() + px, te.getPos().getY() + py, te.getPos().getZ() + pz);
             int light = te.getWorld().getCombinedLight(lp, 0);
-            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit,
+            OpenGlHelper.setLightmapTextureCoords(
+                    OpenGlHelper.lightmapTexUnit,
                     (float)(light & 0xFFFF),
-                    (float)((light >> 16) & 0xFFFF));
+                    (float)((light >> 16) & 0xFFFF)
+            );
 
             RenderHelper.enableStandardItemLighting();
-            Minecraft.getMinecraft().getRenderItem().renderItem(renderMirror, ItemCameraTransforms.TransformType.FIXED);
+            Minecraft.getMinecraft().getRenderItem()
+                    .renderItem(renderMirror, ItemCameraTransforms.TransformType.FIXED);
             RenderHelper.disableStandardItemLighting();
 
             GlStateManager.popMatrix();
         }
 
-        // === 2) ПОДВЕШЕННЫЕ К ВЫБРОСУ ЗЕРКАЛА (призраки без «дёрганья») ===
-        java.util.List<int[]> pend = te.getPendingEjectVisuals(); // {ring,slot,age,ttl}
+        // === 2) ПОДВЕШЕННЫЕ К ВЫБРОСУ ЗЕРКАЛА ===
+        List<int[]> pend = te.getPendingEjectVisuals(); // {ring,slot,age,ttl}
         int ttl = te.getEjectHoverTicks();
         for (int[] v : pend) {
             int ring = v[0], slot = v[1], age = v[2];
@@ -101,13 +122,11 @@ public class RenderMirrorManager extends net.minecraft.client.renderer.tileentit
             double px = Math.cos(ang) * RADIUS;
             double pz = Math.sin(ang) * RADIUS;
 
-            // лёгкое «замирающее» покачивание и медленный спин
             float tt = (t + partialTicks);
             float bob = MathHelper.sin(tt * 0.5f) * (BOB_AMPL * 0.35f);
             float py = BASE_Y + ring * Y_STEP + bob;
             float spin = (tt * (SPIN_BASE * 0.25f)) % 360f;
 
-            // плавный fade-out в последнюю треть времени
             float a = (p < 0.66f) ? 0.75f : MathHelper.clamp(0.75f * (1f - (p - 0.66f) / 0.34f), 0f, 0.75f);
 
             GlStateManager.pushMatrix();
@@ -117,22 +136,25 @@ public class RenderMirrorManager extends net.minecraft.client.renderer.tileentit
 
             BlockPos lp = new BlockPos(te.getPos().getX() + px, te.getPos().getY() + py, te.getPos().getZ() + pz);
             int light = te.getWorld().getCombinedLight(lp, 0);
-            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit,
+            OpenGlHelper.setLightmapTextureCoords(
+                    OpenGlHelper.lightmapTexUnit,
                     (float)(light & 0xFFFF),
-                    (float)((light >> 16) & 0xFFFF));
+                    (float)((light >> 16) & 0xFFFF)
+            );
 
             GlStateManager.color(1F, 1F, 1F, a);
             RenderHelper.enableStandardItemLighting();
-            Minecraft.getMinecraft().getRenderItem().renderItem(renderMirror, ItemCameraTransforms.TransformType.FIXED);
+            Minecraft.getMinecraft().getRenderItem()
+                    .renderItem(renderMirror, ItemCameraTransforms.TransformType.FIXED);
             RenderHelper.disableStandardItemLighting();
             GlStateManager.color(1F, 1F, 1F, 1F);
 
             GlStateManager.popMatrix();
         }
 
-        // === 3) ЛЕТЯЩИЕ ПРЕДМЕТЫ ПО ДУГЕ (как было) ===
+        // === 3) ЛЕТЯЩИЕ ПРЕДМЕТЫ ===
         te.clientCullFlying();
-        java.util.List<TileMirrorManager.FlyingItem> fly = te.getFlying();
+        List<TileMirrorManager.FlyingItem> fly = te.getFlying();
         for (TileMirrorManager.FlyingItem f : fly) {
             if (f.stack.isEmpty()) continue;
 
@@ -151,7 +173,9 @@ public class RenderMirrorManager extends net.minecraft.client.renderer.tileentit
 
             float tt2 = (t + partialTicks) - f.start;
             float p = MathHelper.clamp(tt2 / (float)f.duration, 0f, 1f);
-            float ease = (p < 0.5f) ? (2f * p * p) : (1f - (float)Math.pow(-2f * p + 2f, 2) / 2f);
+            float ease = (p < 0.5f)
+                    ? (2f * p * p)
+                    : (1f - (float)Math.pow(-2f * p + 2f, 2) / 2f);
 
             float cut = 0.90f + (((f.seed >> 17) & 15) / 15f) * 0.05f;
             if (ease >= cut) continue;
@@ -171,15 +195,21 @@ public class RenderMirrorManager extends net.minecraft.client.renderer.tileentit
             GlStateManager.rotate(wob, 0, 0, 1);
             GlStateManager.scale(0.50f, 0.50f, 0.50f);
 
-            BlockPos lp = new BlockPos(te.getPos().getX() + pos.x, te.getPos().getY() + pos.y, te.getPos().getZ() + pos.z);
+            BlockPos lp = new BlockPos(
+                    te.getPos().getX() + pos.x,
+                    te.getPos().getY() + pos.y,
+                    te.getPos().getZ() + pos.z);
             int light = te.getWorld().getCombinedLight(lp, 0);
-            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit,
+            OpenGlHelper.setLightmapTextureCoords(
+                    OpenGlHelper.lightmapTexUnit,
                     (float)(light & 0xFFFF),
-                    (float)((light >> 16) & 0xFFFF));
+                    (float)((light >> 16) & 0xFFFF)
+            );
 
             GlStateManager.color(1F, 1F, 1F, a);
             RenderHelper.enableStandardItemLighting();
-            Minecraft.getMinecraft().getRenderItem().renderItem(f.stack, ItemCameraTransforms.TransformType.FIXED);
+            Minecraft.getMinecraft().getRenderItem()
+                    .renderItem(f.stack, ItemCameraTransforms.TransformType.FIXED);
             RenderHelper.disableStandardItemLighting();
             GlStateManager.color(1F, 1F, 1F, 1F);
 

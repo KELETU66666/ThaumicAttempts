@@ -8,12 +8,12 @@
       ],
       "category": "GOLEMANCY",
       "parents": [
-        "TA_GOLEMCRAFT", "TA_GOLEM_MIRRORS"
+        "TA_GOLEM_MIRRORS"
       ],
       "siblings": [],
       "location": [
         7,
-        4
+        2
       ],
       "stages": [
         {

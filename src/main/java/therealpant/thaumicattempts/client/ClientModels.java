@@ -5,16 +5,13 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.client.renderer.block.statemap.StateMap;
 import net.minecraft.client.renderer.block.statemap.StateMapperBase;
-import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 import therealpant.thaumicattempts.ThaumicAttempts;
 import therealpant.thaumicattempts.client.render.*;
 import therealpant.thaumicattempts.golemcraft.ModBlocksItems;
@@ -26,6 +23,7 @@ import therealpant.thaumicattempts.golemnet.tile.TilePatternRequester;
 import therealpant.thaumicattempts.golemnet.tile.TileResourceRequester;
 import therealpant.thaumicattempts.init.TABlocks;
 import therealpant.thaumicattempts.proxy.CommonProxy;
+import java.util.function.Supplier;
 
 @Mod.EventBusSubscriber(value = Side.CLIENT, modid = ThaumicAttempts.MODID)
 public final class ClientModels extends CommonProxy {
@@ -59,13 +57,19 @@ public final class ClientModels extends CommonProxy {
                 Item.getItemFromBlock(ModBlocksItems.EAR_BAND), 0,
                 new ModelResourceLocation("thaumcraft:arcane_ear", "inventory")
         );
+        ModelLoader.setCustomModelResourceLocation(
+                Item.getItemFromBlock(TABlocks.RESOURCE_REQUESTER), 0,
+                new ModelResourceLocation("thaumicattempts:resource_requester", "inventory")
+        );
 
         // предметы-«тайлы»
         registerItemModel(TABlocks.MIRROR_MANAGER_ITEM);
         registerItemModel(TABlocks.ORDER_TERMINAL_ITEM);
         registerItemModel(TABlocks.PATTERN_REQUESTER_ITEM);
         registerItemModel(TABlocks.RESOURCE_REQUESTER_ITEM);
-
+        attachTileRenderer(TABlocks.RESOURCE_REQUESTER_ITEM, TileResourceRequester::new);
+        registerItemModel(TABlocks.GOLEM_DISPATCHER_ITEM);
+        attachTileRenderer(TABlocks.GOLEM_DISPATCHER_ITEM, TileGolemDispatcher::new);
         /* ---------- StateMappers (рендер БЛОКА в мире) ---------- */
 
         // наши крафтеры: игнорируем таумовский ENABLED (если присутствует)
@@ -108,7 +112,9 @@ public final class ClientModels extends CommonProxy {
         );
 
         /* ---------- TESR ---------- */
-        ClientRegistry.bindTileEntitySpecialRenderer(TileMirrorManager.class, new RenderMirrorManager());
+        ClientRegistry.bindTileEntitySpecialRenderer(
+                TileMirrorManager.class,
+                new RenderMirrorManagerGeo());
         ClientRegistry.bindTileEntitySpecialRenderer(
                 TilePatternRequester.class,
                 new RenderPatternRequesterGeo()
@@ -137,5 +143,9 @@ public final class ClientModels extends CommonProxy {
         ModelLoader.setCustomModelResourceLocation(
                 item, 0, new ModelResourceLocation(item.getRegistryName(), "inventory")
         );
+    }
+
+    private static void attachTileRenderer(Item item, Supplier<? extends net.minecraft.tileentity.TileEntity> factory) {
+        item.setTileEntityItemStackRenderer(new TileItemStackRenderer<>(factory));
     }
 }

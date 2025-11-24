@@ -14,6 +14,8 @@ import thaumcraft.api.crafting.InfusionRecipe;
 import thaumcraft.api.items.ItemsTC;
 import thaumcraft.common.blocks.BlockTC;
 import therealpant.thaumicattempts.ThaumicAttempts;
+import therealpant.thaumicattempts.golemcraft.ModBlocksItems;
+import therealpant.thaumicattempts.init.TABlocks;
 
 import static org.apache.logging.log4j.core.util.Assert.isEmpty;
 import static thaumcraft.api.blocks.BlocksTC.stoneEldritchTile;
@@ -29,16 +31,16 @@ public final class TAInfusionRecipes {
         // Эссенция: 50 Vacuos, 100 Machina, 100 Fabrico
         // Нестабильность: высокая
         ItemStack OUT_CRAFTER = new ItemStack(Item.getByNameOrId(ThaumicAttempts.MODID + ":golem_crafter"));
-        Object   CENTER1      = Blocks.CRAFTING_TABLE;
+        Object CENTER1 = Blocks.CRAFTING_TABLE;
 
-        Object[] COMPS1 = new Object[] {
+        Object[] COMPS1 = new Object[]{
                 // 2× доски Великого дерева
                 new ItemStack(Item.getItemFromBlock(Block.getBlockFromName("thaumcraft:plank_greatwood"))),
 
                 // 1× Биотаумический разум
                 new ItemStack(ItemsTC.mind, 1, 1), // meta 1 = Biothaumic Mind
                 // 1× Morphic Resonator
-                new ItemStack(ItemsTC.seals, 1,3),
+                new ItemStack(ItemsTC.seals, 1, 3),
 
                 new ItemStack(Item.getItemFromBlock(Block.getBlockFromName("thaumcraft:plank_greatwood"))),
                 // 1× Seal: Store и 1× Seal: Use.
@@ -46,13 +48,13 @@ public final class TAInfusionRecipes {
                 // Если хочешь зафиксировать строго Store/Use — подставь их мета-индексы сюда (new ItemStack(ItemsTC.seals,1,<meta>)).
                 new ItemStack(ItemsTC.morphicResonator),
 
-                new ItemStack(ItemsTC.seals, 1,14),
+                new ItemStack(ItemsTC.seals, 1, 14),
         };
 
         AspectList AS1 = new AspectList()
-                .add(Aspect.VOID,      50)
+                .add(Aspect.VOID, 50)
                 .add(Aspect.MECHANISM, 100)
-                .add(Aspect.CRAFT,     100);
+                .add(Aspect.CRAFT, 100);
 
         ThaumcraftApi.addInfusionCraftingRecipe(
                 new ResourceLocation(ThaumicAttempts.MODID, "golem_crafter_infusion"),
@@ -65,9 +67,9 @@ public final class TAInfusionRecipes {
         // Эссенция: 100 Auram, 100 Praecantatio, 50 Machina
         // Нестабильность: высокая
         ItemStack OUT_ARC = new ItemStack(Item.getByNameOrId(ThaumicAttempts.MODID + ":arcane_crafter"));
-        Object   CENTER2  = new ItemStack(Item.getByNameOrId(ThaumicAttempts.MODID + ":golem_crafter"));
+        Object CENTER2 = new ItemStack(Item.getByNameOrId(ThaumicAttempts.MODID + ":golem_crafter"));
 
-        Object[] COMPS2 = new Object[] {
+        Object[] COMPS2 = new Object[]{
                 new ItemStack(ItemsTC.salisMundus),
                 new ItemStack(ItemsTC.visResonator),
                 Item.getItemFromBlock(Block.getBlockFromName("thaumcraft:arcane_workbench")),
@@ -77,9 +79,9 @@ public final class TAInfusionRecipes {
         };
 
         AspectList AS2 = new AspectList()
-                .add(Aspect.AURA,    100)
-                .add(Aspect.MAGIC,   100)
-                .add(Aspect.MECHANISM,50);
+                .add(Aspect.AURA, 100)
+                .add(Aspect.MAGIC, 100)
+                .add(Aspect.MECHANISM, 50);
 
         ThaumcraftApi.addInfusionCraftingRecipe(
                 new ResourceLocation(ThaumicAttempts.MODID, "arcane_crafter_infusion"),
@@ -95,7 +97,7 @@ public final class TAInfusionRecipes {
                 // центр: мозг в банке (thaumcraft:jar_brain)
                 Object CENTER = ItemsTC.golemBell;
 
-                Object[] COMPS = new Object[] {
+                Object[] COMPS = new Object[]{
                         new ItemStack(ItemsTC.primordialPearl),
                         new ItemStack(Item.getItemFromBlock(stoneEldritchTile)),
                         new ItemStack(ItemsTC.mirroredGlass),
@@ -108,8 +110,8 @@ public final class TAInfusionRecipes {
 
                 AspectList AS = new AspectList()
                         .add(Aspect.ELDRITCH, 150)
-                        .add(Aspect.MOTION,   100)
-                        .add(Aspect.ORDER,   100);
+                        .add(Aspect.MOTION, 100)
+                        .add(Aspect.ORDER, 100);
 
                 ThaumcraftApi.addInfusionCraftingRecipe(
                         new ResourceLocation(ThaumicAttempts.MODID, "mirror_manager_infusion"),
@@ -120,7 +122,7 @@ public final class TAInfusionRecipes {
                 System.out.println("[TA] Skip mirror_manager: item not found");
             }
         }
-
+        // ------------ Зеркальный Моячек ------------ \\
         try {
             ThaumcraftApi.addInfusionCraftingRecipe(
                     new ResourceLocation(ThaumicAttempts.MODID, "requester_infusion"),
@@ -129,19 +131,19 @@ public final class TAInfusionRecipes {
                             new ItemStack(Item.getByNameOrId(ThaumicAttempts.MODID + ":pattern_requester")), // результат
                             6, // нестабильность — можно поправить
                             new AspectList()
-                                    .add(Aspect.MOTION,   75)
-                                    .add(Aspect.VOID,     75)
+                                    .add(Aspect.MOTION, 75)
+                                    .add(Aspect.VOID, 75)
                                     .add(Aspect.ELDRITCH, 75),
                             // центр — магическое зеркало (блок)
                             new ItemStack(Item.getItemFromBlock(Block.getBlockFromName("thaumcraft:mirror"))),
                             // внешние пилоны: 4 void-пластины и 4 mirrored glass, чередуем
-                            new ItemStack(ItemsTC.plate, 1,3),
+                            new ItemStack(ItemsTC.plate, 1, 3),
                             new ItemStack(ItemsTC.mirroredGlass),
-                            new ItemStack(ItemsTC.plate, 1,3),
+                            new ItemStack(ItemsTC.plate, 1, 3),
                             new ItemStack(ItemsTC.mirroredGlass),
-                            new ItemStack(ItemsTC.plate, 1,3),
+                            new ItemStack(ItemsTC.plate, 1, 3),
                             new ItemStack(ItemsTC.mirroredGlass),
-                            new ItemStack(ItemsTC.plate, 1,3),
+                            new ItemStack(ItemsTC.plate, 1, 3),
                             new ItemStack(ItemsTC.mirroredGlass)
                     )
             );
@@ -149,8 +151,35 @@ public final class TAInfusionRecipes {
         } catch (Throwable t) {
             System.out.println("[TA] Skip requester_infusion: " + t);
         }
-    }
 
+        try {
+            ThaumcraftApi.addInfusionCraftingRecipe(
+                    new ResourceLocation(ThaumicAttempts.MODID, "dispatcher_infusion"),
+                    new InfusionRecipe(
+                            "TA_GOLEMCONTROLER",
+                            new ItemStack(TABlocks.GOLEM_DISPATCHER_ITEM),
+                            8,
+                            new AspectList()
+                                    .add(Aspect.MECHANISM, 125)
+                                    .add(Aspect.ELDRITCH, 75)
+                                    .add(Aspect.MIND, 150),
+                            new ItemStack(Item.getItemFromBlock(ModBlocksItems.MATH_CORE)),
+                            new ItemStack(ItemsTC.plate, 1, 3),
+                            new ItemStack(Item.getByNameOrId("thaumcraft:brain_box")),
+                            new ItemStack(ItemsTC.mind, 1, 1),
+                            new ItemStack(Item.getByNameOrId("thaumcraft:brain_box")),
+                            new ItemStack(ItemsTC.plate, 1, 3),
+                            new ItemStack(Item.getByNameOrId("thaumcraft:brain_box")),
+                            new ItemStack(ItemsTC.mind, 1, 1),
+                            new ItemStack(Item.getByNameOrId("thaumcraft:brain_box"))
+
+                    )
+            );
+            System.out.println("[TA] Registered infusion: dispatcher_infusion");
+        } catch (Throwable t) {
+            System.out.println("[TA] Skip dispatcher_infusion: " + t);
+        }
+    }
 }
 
 

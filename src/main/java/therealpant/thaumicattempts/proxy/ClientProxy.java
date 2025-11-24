@@ -2,6 +2,7 @@ package therealpant.thaumicattempts.proxy;
 
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.event.*;
+import therealpant.thaumicattempts.client.OptifineCompat;
 import therealpant.thaumicattempts.client.render.RenderOrderTerminal;
 import therealpant.thaumicattempts.golemnet.tile.TileOrderTerminal;
 
@@ -13,6 +14,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void preInit(FMLPreInitializationEvent e) {
         super.preInit(e);
+        OptifineCompat.ensureSafeSettings();
         ClientRegistry.bindTileEntitySpecialRenderer(TileOrderTerminal.class, new RenderOrderTerminal());
     }
 

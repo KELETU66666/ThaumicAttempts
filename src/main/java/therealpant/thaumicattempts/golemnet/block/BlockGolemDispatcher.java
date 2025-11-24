@@ -28,7 +28,7 @@ public class BlockGolemDispatcher extends Block {
         setLightOpacity(0);
         setHardness(2.0F);
         setResistance(10.0F);
-        setTranslationKey("golem_dispatcher");
+        setTranslationKey(ThaumicAttempts.MODID + ".golem_dispatcher");
         setRegistryName(ThaumicAttempts.MODID, "golem_dispatcher");
         setCreativeTab(ThaumicAttempts.CREATIVE_TAB);
     }
